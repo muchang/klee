@@ -5,6 +5,8 @@ Debug+Asserts/
 Output/
 examples/
 
+.*
+
 cscope.*
 *~
 
