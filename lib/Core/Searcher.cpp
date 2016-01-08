@@ -45,6 +45,7 @@
 #include <cassert>
 #include <fstream>
 #include <climits>
+#include <iostream>
 
 using namespace klee;
 using namespace llvm;
@@ -52,6 +53,11 @@ using namespace llvm;
 namespace {
   cl::opt<bool>
   DebugLogMerge("debug-log-merge");
+
+  cl::opt<std::string>
+  DefUseFile("def-use-file");
+
+  int alertflag = 0;
 }
 
 namespace klee {
@@ -64,6 +70,10 @@ Searcher::~Searcher() {
 ///
 
 ExecutionState &DFSSearcher::selectState() {
+  if(alertflag == 0){
+	  std::cerr << "It's work!\n" <<  DefUseFile;
+	  alertflag = 1;
+  }
   return *states.back();
 }
 
