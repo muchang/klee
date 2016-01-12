@@ -15,6 +15,7 @@
 #include <set>
 #include <map>
 #include <queue>
+#include <list>
 
 namespace llvm {
   class BasicBlock;
@@ -27,6 +28,30 @@ namespace klee {
   template<class T> class DiscretePDF;
   class ExecutionState;
   class Executor;
+
+  //muchang
+  struct DefUsePair{
+      	int dua_id;
+      	int dua_kind;
+
+      	std::string def_var_name;
+      	int def_var_id;
+      	int def_var_line;
+      	std::string def_file_name;
+      	std::string def_func_name;
+      	int def_func_id;
+      	int def_stmt_id;
+      	std::string def_cutpoint;
+
+      	std::string use_var_name;
+        int use_var_id;
+        int use_var_line;
+        std::string use_file_name;
+        std::string use_func_name;
+        int use_func_id;
+        int use_stmt_id;
+        std::string use_cutpoint;
+  };
 
   class Searcher {
   public:
@@ -84,6 +109,9 @@ namespace klee {
     std::vector<ExecutionState*> states;
 
   public:
+    DFSSearcher();
+    ~DFSSearcher();
+
     ExecutionState &selectState();
     void update(ExecutionState *current,
                 const std::set<ExecutionState*> &addedStates,
