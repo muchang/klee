@@ -22,21 +22,25 @@ namespace llvm {
 
 namespace klee {
 
+  //muchang
   /* Stores debug information for a KInstruction */
   struct InstructionInfo {
     unsigned id;
     const std::string &file;
     unsigned line;
+    unsigned Column;
     unsigned assemblyLine;
 
   public:
     InstructionInfo(unsigned _id,
                     const std::string &_file,
                     unsigned _line,
+					unsigned _Column,
                     unsigned _assemblyLine)
       : id(_id), 
         file(_file),
         line(_line),
+		Column(_Column),
         assemblyLine(_assemblyLine) {
     }
   };
@@ -56,7 +60,9 @@ namespace klee {
   private:
     const std::string *internString(std::string s);
     bool getInstructionDebugInfo(const llvm::Instruction *I,
-                                 const std::string *&File, unsigned &Line);
+                                 const std::string *&File,
+								 unsigned &Line,
+								 unsigned &Column);
 
   public:
     InstructionInfoTable(llvm::Module *m);

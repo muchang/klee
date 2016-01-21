@@ -89,6 +89,7 @@
 #include "llvm/IR/CallSite.h"
 #endif
 
+#include <iostream>
 #include <cassert>
 #include <algorithm>
 #include <iomanip>
@@ -261,6 +262,11 @@ namespace {
   MaxMemoryInhibit("max-memory-inhibit",
             cl::desc("Inhibit forking at memory cap (vs. random terminate) (default=on)"),
             cl::init(true));
+
+  cl::opt<unsigned int>
+  checkLine("check-line",
+            cl::init(0));
+
 }
 
 
@@ -1415,8 +1421,11 @@ static inline const llvm::fltSemantics * fpWidthToSemantics(unsigned width) {
   }
 }
 
+//muchang
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   Instruction *i = ki->inst;
+  std::cerr << "id:" << ki->info->id << " Column:" << ki->info->Column << " assemblyLine: " << ki->info->assemblyLine << " Line:" << ki->info->line << "\n";
+
   switch (i->getOpcode()) {
     // Control flow
   case Instruction::Ret: {
