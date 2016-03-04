@@ -32,6 +32,7 @@
 #include "llvm/ADT/Twine.h"
 
 #include <errno.h>
+#include <iostream>
 
 using namespace llvm;
 using namespace klee;
@@ -81,6 +82,7 @@ static SpecialFunctionHandler::HandlerInfo handlerInfo[] = {
   addDNR("klee_silent_exit", handleSilentExit),  
   addDNR("klee_report_error", handleReportError),
 
+  add("klee_cil_info", handleCilInfo, false),
   add("calloc", handleCalloc, true),
   add("free", handleFree, false),
   add("klee_assume", handleAssume, false),
@@ -774,4 +776,12 @@ void SpecialFunctionHandler::handleDivRemOverflow(ExecutionState &state,
   executor.terminateStateOnError(state,
                                  "overflow on division or remainder",
                                  "overflow.err");
+}
+
+//muchang
+void SpecialFunctionHandler::handleCilInfo(ExecutionState &state,
+											  KInstruction *target,
+											  std::vector<ref<Expr> > &arguments) {
+	std::string Info = readStringAtAddress(state, arguments[0]);
+	std::cerr << Info << "\n";
 }

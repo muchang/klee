@@ -1424,7 +1424,7 @@ static inline const llvm::fltSemantics * fpWidthToSemantics(unsigned width) {
 //muchang
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   Instruction *i = ki->inst;
-  std::cerr << "id:" << ki->info->id << " Column:" << ki->info->Column << " assemblyLine: " << ki->info->assemblyLine << " Line:" << ki->info->line << "\n";
+  std::cerr << "id:" << ki->info->id << " assemblyLine: " << ki->info->assemblyLine << " Line:" << ki->info->line << "\n";
 
   switch (i->getOpcode()) {
     // Control flow
@@ -3582,4 +3582,8 @@ Expr::Width Executor::getWidthForLLVMType(LLVM_TYPE_Q llvm::Type *type) const {
 Interpreter *Interpreter::create(const InterpreterOptions &opts,
                                  InterpreterHandler *ih) {
   return new Executor(opts, ih);
+}
+
+void Executor::setCilInfoTable(std::string cilInfoFile){
+	cilInfoTable = new CilInfoTable(cilInfoFile);
 }

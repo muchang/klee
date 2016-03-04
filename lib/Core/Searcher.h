@@ -29,31 +29,6 @@ namespace klee {
   class ExecutionState;
   class Executor;
 
-  //muchang
-  class DefUsePair{
-  public:
-      int dua_id;
-      int dua_kind;
-
-      std::string def_var_name;
-      int def_var_id;
-      int def_var_line;
-      std::string def_file_name;
-      std::string def_func_name;
-      int def_func_id;
-      int def_stmt_id;
-      std::string def_cutpoint;
-
-      std::string use_var_name;
-      int use_var_id;
-      int use_var_line;
-      std::string use_file_name;
-      std::string use_func_name;
-      int use_func_id;
-      int use_stmt_id;
-      std::string use_cutpoint;
-  };
-
   class Searcher {
   public:
     virtual ~Searcher();
@@ -326,6 +301,24 @@ namespace klee {
         (*it)->printName(os);
       os << "</InterleavedSearcher>\n";
     }
+  };
+
+  class DataFlowSearcher : public Searcher {
+	  std::vector<ExecutionState*> states;
+	  Executor &executor;
+
+	  public:
+	  	 DataFlowSearcher(Executor &executor);
+	    ~DataFlowSearcher();
+
+	    ExecutionState &selectState();
+	    void update(ExecutionState *current,
+	                  const std::set<ExecutionState*> &addedStates,
+	                  const std::set<ExecutionState*> &removedStates);
+	    bool empty() { return states.empty(); }
+	    void printName(llvm::raw_ostream &os) {
+	        os << "DataFlowSearcher\n";
+	    }
   };
 
 }

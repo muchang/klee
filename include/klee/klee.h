@@ -17,6 +17,9 @@
 extern "C" {
 #endif
   
+  /*muchang*/
+  void klee_cil_info(const char *info);
+
   /* Add an accesible memory object at a user specified location. It
    * is the users responsibility to make sure that these memory
    * objects do not overlap. These memory objects will also

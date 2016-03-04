@@ -53,9 +53,6 @@ using namespace llvm;
 namespace {
   cl::opt<bool>
   DebugLogMerge("debug-log-merge");
-
-  cl::opt<std::string>
-  DefUseFile("def-use-file");
 }
 
 namespace klee {
@@ -69,44 +66,6 @@ Searcher::~Searcher() {
 
 DFSSearcher::DFSSearcher(){
 
-	//muchang
-	if(DefUseFile == ""){
-		std::cout << "Work with DFS Searcher!";
-	}
-	else{
-
-		std::cout << "Work with DU Searcher!";
-		std::list<klee::DefUsePair> dulist;
-		std::ifstream fin(DefUseFile.c_str());
-
-		//Read def-use pairs from the file defined by def-use-file command line option.
-		while(1){
-			DefUsePair dupair;
-			fin >> dupair.dua_id;
-			if(fin.good()){
-				fin >> dupair.dua_kind;
-				fin >> dupair.def_var_name >> dupair.def_var_id >> dupair.def_var_line >> dupair.def_file_name >> dupair.def_func_name >> dupair.def_func_id >> dupair.def_stmt_id >> dupair.def_cutpoint;
-				fin >> dupair.use_var_name >> dupair.use_var_id >> dupair.use_var_line >> dupair.use_file_name >> dupair.use_func_name >> dupair.use_func_id >> dupair.use_stmt_id >> dupair.use_cutpoint;
-				std::cerr << dupair.dua_id << dupair.dua_kind;
-				std::cerr << dupair.def_var_name << dupair.def_var_id << dupair.def_var_line << dupair.def_file_name << dupair.def_func_name << dupair.def_func_id << dupair.def_stmt_id << dupair.def_cutpoint << "\n";
-				std::cerr << dupair.use_var_name << dupair.use_var_id << dupair.use_var_line << dupair.use_file_name << dupair.use_func_name << dupair.use_func_id << dupair.use_stmt_id << dupair.use_cutpoint << "\n";
-				dulist.push_front(dupair);
-			}
-			else{
-				std::cout << "**************************************" << std::endl;
-				break;
-			}
-		}
-
-		std::list<klee::DefUsePair>::iterator it;
-		for(it = dulist.begin(); it != dulist.end(); ++it){
-			std::cerr << it->dua_id << it->dua_kind;
-			std::cerr << it->def_var_name << it->def_var_id << it->def_var_line << it->def_file_name << it->def_func_name << it->def_func_id << it->def_stmt_id << it->def_cutpoint << "\n";
-			std::cerr << it->use_var_name << it->use_var_id << it->use_var_line << it->use_file_name << it->use_func_name << it->use_func_id << it->use_stmt_id << it->use_cutpoint << "\n";
-		}
-
-		fin.close();
-	}
 }
 
 DFSSearcher::~DFSSearcher(){
@@ -483,7 +442,7 @@ ExecutionState &MergingSearcher::selectState() {
     while (!toMerge.empty()) {
       ExecutionState *base = *toMerge.begin();
       toMerge.erase(toMerge.begin());
-      
+
       std::set<ExecutionState*> toErase;
       for (std::set<ExecutionState*>::iterator it = toMerge.begin(),
              ie = toMerge.end(); it != ie; ++it) {
@@ -664,4 +623,47 @@ void InterleavedSearcher::update(ExecutionState *current,
   for (std::vector<Searcher*>::const_iterator it = searchers.begin(),
          ie = searchers.end(); it != ie; ++it)
     (*it)->update(current, addedStates, removedStates);
+}
+
+///
+
+//muchang
+DataFlowSearcher::DataFlowSearcher(Executor &_executor)
+	  : executor(_executor) {
+}
+
+DataFlowSearcher::~DataFlowSearcher(){
+
+}
+
+ExecutionState &DataFlowSearcher::selectState() {
+  return *states.back();
+}
+
+void DataFlowSearcher::update(ExecutionState *current,
+                         const std::set<ExecutionState*> &addedStates,
+                         const std::set<ExecutionState*> &removedStates) {
+  states.insert(states.end(),
+                addedStates.begin(),
+                addedStates.end());
+  for (std::set<ExecutionState*>::const_iterator it = removedStates.begin(),
+         ie = removedStates.end(); it != ie; ++it) {
+    ExecutionState *es = *it;
+    if (es == states.back()) {
+      states.pop_back();
+    } else {
+      bool ok = false;
+
+      for (std::vector<ExecutionState*>::iterator it = states.begin(),
+             ie = states.end(); it != ie; ++it) {
+        if (es==*it) {
+          states.erase(it);
+          ok = true;
+          break;
+        }
+      }
+
+      assert(ok && "invalid state removed");
+    }
+  }
 }

@@ -20,6 +20,7 @@
 #include "klee/Internal/Module/Cell.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
+#include "klee/Internal/Module/CilInfoTable.h"
 
 #include "llvm/ADT/Twine.h"
 
@@ -55,6 +56,7 @@ namespace klee {
   class ExternalDispatcher;
   class Expr;
   class InstructionInfoTable;
+  class CilInfoTable;
   struct KFunction;
   struct KInstruction;
   class KInstIterator;
@@ -79,6 +81,7 @@ namespace klee {
   /// removedStates, and haltExecution, among others.
 
 class Executor : public Interpreter {
+  //muchang
   friend class BumpMergingSearcher;
   friend class MergingSearcher;
   friend class RandomPathSearcher;
@@ -86,6 +89,7 @@ class Executor : public Interpreter {
   friend class WeightedRandomSearcher;
   friend class SpecialFunctionHandler;
   friend class StatsTracker;
+  friend class DataFlowSearcher;
 
 public:
   class Timer {
@@ -105,6 +109,7 @@ private:
   KModule *kmodule;
   InterpreterHandler *interpreterHandler;
   Searcher *searcher;
+  CilInfoTable *cilInfoTable;
 
   ExternalDispatcher *externalDispatcher;
   TimingSolver *solver;
@@ -468,6 +473,8 @@ public:
                                std::map<const std::string*, std::set<unsigned> > &res);
 
   Expr::Width getWidthForLLVMType(LLVM_TYPE_Q llvm::Type *type) const;
+
+  void setCilInfoTable(std::string cilInfoFile);
 };
   
 } // End klee namespace
