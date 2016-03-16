@@ -6,21 +6,25 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
+#include "../../lib/Core/PTree.h"
+
 #include <string>
-#include <list>
+#include <vector>
 #include <iostream>
 
 namespace klee {
 
   struct Point {
 	  std::string var_name;
-	  int var_id;
-	  int var_line;
+	  std::string var_id;
+	  std::string var_line;
 	  std::string file_name;
 	  std::string func_name;
-	  int func_id;
-	  int stmt_id;
+	  std::string func_id;
+	  std::string stmt_id;
 	  std::string cutpoint;
+
+    PTreeNode* ptreeNode;
 
 	  bool operator == (const Point& );
 	  void print();
@@ -34,36 +38,37 @@ namespace klee {
   };
 
   struct Use : public Point {
+    std::string kind;
 	  bool operator == (const Use& );
 	  void print();
 	  void readFromIfstream(std::ifstream& fin);
   };
 
   struct DefUsePair {
-	  enum Status{
-		  UnReach,
-		  ReachDef,
-		  Covered
-	  };
-      int dua_id;
-      int dua_kind;
-      Definition def;
-      Use use;
-      Status status;
+    std::string dua_id;
+    Definition def;
+    Use use;
+    std::vector<Definition> redefineList;
+    /*
+    status:
+      0:UnReach,
+      1:ReachDef,
+      2:Covered,
+      3:Redefine,
+    */
+    int status;
 
-      DefUsePair()
-      	  : dua_id(0),
-			dua_kind(0),
-			status(UnReach) {};
-      bool updateStatus(const Definition& );
-      bool updateStatus(const Use& );
-      void print();
+    bool checkRedefine(const Use&);
+    bool readFromIfstream(std::ifstream& fin);
+    bool updateStatus(const Definition& );
+    bool updateStatus(const Use& );
+    void print();
   };
 
   class CilInfoTable {
 
   private:
-	  std::list<DefUsePair> defUseList;
+	  std::vector<DefUsePair> defUseList;
 
   public:
 	 CilInfoTable(std::string cilInfoFile);

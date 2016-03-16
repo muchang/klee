@@ -3,7 +3,9 @@
 
 using namespace klee;
 
-bool Point::operator== (const Point& _point){
+class PTreeNode;
+
+bool Point::operator== (const Point& _point) {
 	if (this->file_name == _point.file_name &&
 			this->func_id == _point.func_id &&
 			this->func_name == _point.func_name &&
@@ -20,12 +22,13 @@ void Point::print() {
 	std::cerr << var_name << " " << var_id << " " << var_line << " " << file_name << " " << func_name << " " << func_id << " " << stmt_id << " " << cutpoint << "\n" ;
 }
 
-bool Definition::withSameVariableAs(const Definition& _def){
+bool Definition::withSameVariableAs(const Definition& _def) {
 	if (this->file_name == _def.file_name &&
 			this->func_id == _def.func_id &&
 			this->func_name == _def.func_name &&
 			this->var_id == _def.var_id &&
-			this->var_name == _def.var_name)
+			this->var_name == _def.var_name &&
+			this->stmt_id != _def.stmt_id)
 		return true;
 	else
 		return false;
@@ -36,7 +39,7 @@ void Definition::print() {
 	Point::print();
 }
 
-bool Definition::operator== (const Definition& _def){
+bool Definition::operator== (const Definition& _def) {
 	if (this->file_name == _def.file_name &&
 				this->func_id == _def.func_id &&
 				this->func_name == _def.func_name &&
@@ -50,12 +53,12 @@ bool Definition::operator== (const Definition& _def){
 }
 
 
-void Definition::readFromIfstream(std::ifstream& fin){
+void Definition::readFromIfstream(std::ifstream& fin) {
 	fin >> var_name >> var_id >> var_line >> file_name >> func_name >> func_id >> stmt_id >> cutpoint;
 }
 
 void Use::print() {
-	std::cerr << "Use: ";
+	std::cerr << "Use: " << "use_kind: " << kind << " ";
 	Point::print();
 }
 
@@ -66,7 +69,8 @@ bool Use::operator== (const Use& _use){
 				this->stmt_id == _use.stmt_id &&
 				this->var_id == _use.var_id &&
 				this->var_line == _use.var_line &&
-				this->var_name == _use.var_name)
+				this->var_name == _use.var_name &&
+				this->kind == _use.kind)
 			return true;
 		else
 			return false;
@@ -77,30 +81,57 @@ void Use::readFromIfstream(std::ifstream& fin){
 }
 
 bool DefUsePair::updateStatus(const Definition& defPoint) {
-	if(def == defPoint && status == UnReach) {
-		status = ReachDef;
+	if(def == defPoint && (status == 0 || status == 3)) {
+		status = 1;
+		def.ptreeNode = defPoint.ptreeNode;
 		return true;
 	}
-	else if(def.withSameVariableAs(defPoint) && status == ReachDef) {
-		status = UnReach;
+	if(status == 1 && def.withSameVariableAs(defPoint)) {
+		redefineList.push_back(defPoint);
 		return true;
 	}
-
 	return false;
 }
 
 bool DefUsePair::updateStatus(const Use& usePoint) {
-	if(use == usePoint && status == ReachDef) {
-		status = Covered;
+	if(use == usePoint
+			&& status == 1
+			&& usePoint.ptreeNode->isPosterityOf(def.ptreeNode)
+			&& checkRedefine(usePoint)) {
+		status = 2;
 		return true;
 	}
-
 	return false;
+}
 
+bool DefUsePair::checkRedefine(const Use& usePoint) {
+	std::vector<klee::Definition>::iterator it;
+	for(it = redefineList.begin(); it != redefineList.end(); ++it){
+		if(usePoint.ptreeNode->isPosterityOf(it->ptreeNode)){
+			status = 3;
+			return false;
+		}
+	}
+	return true;
+}
+
+bool DefUsePair::readFromIfstream(std::ifstream& fin){
+	fin >> dua_id;
+	if(fin.good()){
+		fin >> use.kind;
+		def.readFromIfstream(fin);
+		use.readFromIfstream(fin);
+		fin >> status;
+		print();
+		return true;
+	}
+	else{
+		return false;
+	}
 }
 
 void DefUsePair::print() {
-	std::cerr << dua_id << " " << dua_kind << "\n";
+	std::cerr << dua_id << "\n";
 	def.print();
 	use.print();
 	std::cerr << status << "\n\n";
@@ -109,27 +140,17 @@ void DefUsePair::print() {
 CilInfoTable::CilInfoTable(std::string cilInfoFile){
 	std::cout << "Work with DU Searcher!";
 	std::ifstream fin(cilInfoFile.c_str());
-	int temp;
-
 	//Read def-use pairs from the file defined by def-use-file command line option.
 	while(1){
 		DefUsePair dupair;
-		fin >> dupair.dua_id;
-		if(fin.good()){
-			fin >> dupair.dua_kind;
-			dupair.def.readFromIfstream(fin);
-			dupair.use.readFromIfstream(fin);
-			fin>>temp;
-			dupair.print();
-			defUseList.push_front(dupair);
+		if(dupair.readFromIfstream(fin)){
+			defUseList.push_back(dupair);
 		}
 		else{
 			std::cout << "**************************************" << std::endl;
 			break;
 		}
 	}
-
-
 	fin.close();
 }
 
@@ -138,24 +159,22 @@ CilInfoTable::~CilInfoTable() {
 }
 
 void CilInfoTable::update(const Definition& keyPoint){
-	std::list<klee::DefUsePair>::iterator it;
+	std::vector<klee::DefUsePair>::iterator it;
 	for(it = defUseList.begin(); it != defUseList.end(); ++it){
 		it->updateStatus(keyPoint);
 	}
 }
 
 void CilInfoTable::update(const Use& keyPoint){
-	std::list<klee::DefUsePair>::iterator it;
+	std::vector<klee::DefUsePair>::iterator it;
 	for(it = defUseList.begin(); it != defUseList.end(); ++it){
 		it->updateStatus(keyPoint);
 	}
 }
 
 void CilInfoTable::print() {
-	std::list<klee::DefUsePair>::iterator it;
+	std::vector<klee::DefUsePair>::iterator it;
 	for(it = defUseList.begin(); it != defUseList.end(); ++it) {
-		std::cerr << it->dua_id << it->dua_kind;
-		std::cerr << it->def.var_name << it->def.var_id << it->def.var_line << it->def.file_name << it->def.func_name << it->def.func_id << it->def.stmt_id << it->def.cutpoint ;
-		std::cerr << it->use.var_name << it->use.var_id << it->use.var_line << it->use.file_name << it->use.func_name << it->use.func_id << it->use.stmt_id << it->use.cutpoint << "\n";
+		it->print();
 	}
 }

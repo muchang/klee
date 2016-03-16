@@ -163,7 +163,7 @@ void RandomSearcher::update(ExecutionState *current,
         break;
       }
     }
-    
+
     assert(ok && "invalid state removed");
   }
 }
@@ -174,7 +174,7 @@ WeightedRandomSearcher::WeightedRandomSearcher(WeightType _type)
   : states(new DiscretePDF<ExecutionState*>()),
     type(_type) {
   switch(type) {
-  case Depth: 
+  case Depth:
     updateWeights = false;
     break;
   case InstCount:
@@ -200,7 +200,7 @@ ExecutionState &WeightedRandomSearcher::selectState() {
 double WeightedRandomSearcher::getWeight(ExecutionState *es) {
   switch(type) {
   default:
-  case Depth: 
+  case Depth:
     return es->weight;
   case InstCount: {
     uint64_t count = theStatisticManager->getIndexedValue(stats::instructions,
@@ -239,7 +239,7 @@ void WeightedRandomSearcher::update(ExecutionState *current,
                                     const std::set<ExecutionState*> &removedStates) {
   if (current && updateWeights && !removedStates.count(current))
     states->update(current, getWeight(current));
-  
+
   for (std::set<ExecutionState*>::const_iterator it = addedStates.begin(),
          ie = addedStates.end(); it != ie; ++it) {
     ExecutionState *es = *it;
@@ -252,8 +252,8 @@ void WeightedRandomSearcher::update(ExecutionState *current,
   }
 }
 
-bool WeightedRandomSearcher::empty() { 
-  return states->empty(); 
+bool WeightedRandomSearcher::empty() {
+  return states->empty();
 }
 
 ///
@@ -268,7 +268,7 @@ RandomPathSearcher::~RandomPathSearcher() {
 ExecutionState &RandomPathSearcher::selectState() {
   unsigned flips=0, bits=0;
   PTree::Node *n = executor.processTree->root;
-  
+
   while (!n->data) {
     if (!n->left) {
       n = n->right;
@@ -292,13 +292,13 @@ void RandomPathSearcher::update(ExecutionState *current,
                                 const std::set<ExecutionState*> &removedStates) {
 }
 
-bool RandomPathSearcher::empty() { 
-  return executor.states.empty(); 
+bool RandomPathSearcher::empty() {
+  return executor.states.empty();
 }
 
 ///
 
-BumpMergingSearcher::BumpMergingSearcher(Executor &_executor, Searcher *_baseSearcher) 
+BumpMergingSearcher::BumpMergingSearcher(Executor &_executor, Searcher *_baseSearcher)
   : executor(_executor),
     baseSearcher(_baseSearcher),
     mergeFunction(executor.kmodule->kleeMergeFn) {
@@ -310,7 +310,7 @@ BumpMergingSearcher::~BumpMergingSearcher() {
 
 ///
 
-Instruction *BumpMergingSearcher::getMergePoint(ExecutionState &es) {  
+Instruction *BumpMergingSearcher::getMergePoint(ExecutionState &es) {
   if (mergeFunction) {
     Instruction *i = es.pc->inst;
 
@@ -328,7 +328,7 @@ ExecutionState &BumpMergingSearcher::selectState() {
 entry:
   // out of base states, pick one to pop
   if (baseSearcher->empty()) {
-    std::map<llvm::Instruction*, ExecutionState*>::iterator it = 
+    std::map<llvm::Instruction*, ExecutionState*>::iterator it =
       statesAtMerge.begin();
     ExecutionState *es = it->second;
     statesAtMerge.erase(it);
@@ -340,7 +340,7 @@ entry:
   ExecutionState &es = baseSearcher->selectState();
 
   if (Instruction *mp = getMergePoint(es)) {
-    std::map<llvm::Instruction*, ExecutionState*>::iterator it = 
+    std::map<llvm::Instruction*, ExecutionState*>::iterator it =
       statesAtMerge.find(mp);
 
     baseSearcher->removeState(&es);
@@ -376,7 +376,7 @@ void BumpMergingSearcher::update(ExecutionState *current,
 
 ///
 
-MergingSearcher::MergingSearcher(Executor &_executor, Searcher *_baseSearcher) 
+MergingSearcher::MergingSearcher(Executor &_executor, Searcher *_baseSearcher)
   : executor(_executor),
     baseSearcher(_baseSearcher),
     mergeFunction(executor.kmodule->kleeMergeFn) {
@@ -412,17 +412,17 @@ ExecutionState &MergingSearcher::selectState() {
       return es;
     }
   }
-  
+
   // build map of merge point -> state list
   std::map<Instruction*, std::vector<ExecutionState*> > merges;
   for (std::set<ExecutionState*>::const_iterator it = statesAtMerge.begin(),
          ie = statesAtMerge.end(); it != ie; ++it) {
     ExecutionState &state = **it;
     Instruction *mp = getMergePoint(state);
-    
+
     merges[mp].push_back(&state);
   }
-  
+
   if (DebugLogMerge)
     llvm::errs() << "-- all at merge --\n";
   for (std::map<Instruction*, std::vector<ExecutionState*> >::iterator
@@ -447,7 +447,7 @@ ExecutionState &MergingSearcher::selectState() {
       for (std::set<ExecutionState*>::iterator it = toMerge.begin(),
              ie = toMerge.end(); it != ie; ++it) {
         ExecutionState *mergeWith = *it;
-        
+
         if (base->merge(*mergeWith)) {
           toErase.insert(mergeWith);
         }
@@ -473,12 +473,12 @@ ExecutionState &MergingSearcher::selectState() {
       statesAtMerge.erase(statesAtMerge.find(base));
       ++base->pc;
       baseSearcher->addState(base);
-    }  
+    }
   }
-  
+
   if (DebugLogMerge)
     llvm::errs() << "-- merge complete, continuing --\n";
-  
+
   return selectState();
 }
 
@@ -495,7 +495,7 @@ void MergingSearcher::update(ExecutionState *current,
         statesAtMerge.erase(it2);
         alt.erase(alt.find(es));
       }
-    }    
+    }
     baseSearcher->update(current, addedStates, alt);
   } else {
     baseSearcher->update(current, addedStates, removedStates);
@@ -506,12 +506,12 @@ void MergingSearcher::update(ExecutionState *current,
 
 BatchingSearcher::BatchingSearcher(Searcher *_baseSearcher,
                                    double _timeBudget,
-                                   unsigned _instructionBudget) 
+                                   unsigned _instructionBudget)
   : baseSearcher(_baseSearcher),
     timeBudget(_timeBudget),
     instructionBudget(_instructionBudget),
     lastState(0) {
-  
+
 }
 
 BatchingSearcher::~BatchingSearcher() {
@@ -519,7 +519,7 @@ BatchingSearcher::~BatchingSearcher() {
 }
 
 ExecutionState &BatchingSearcher::selectState() {
-  if (!lastState || 
+  if (!lastState ||
       (util::getWallTime()-lastStartTime)>timeBudget ||
       (stats::instructions-lastStartInstructions)>instructionBudget) {
     if (lastState) {
@@ -579,7 +579,7 @@ void IterativeDeepeningTimeSearcher::update(ExecutionState *current,
         pausedStates.erase(it);
         alt.erase(alt.find(es));
       }
-    }    
+    }
     baseSearcher->update(current, addedStates, alt);
   } else {
     baseSearcher->update(current, addedStates, removedStates);
@@ -637,6 +637,7 @@ DataFlowSearcher::~DataFlowSearcher(){
 }
 
 ExecutionState &DataFlowSearcher::selectState() {
+  std::cerr << "states size" << states.size() << "\n";
   return *states.back();
 }
 

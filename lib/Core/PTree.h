@@ -15,7 +15,7 @@
 namespace klee {
   class ExecutionState;
 
-  class PTree { 
+  class PTree {
     typedef ExecutionState* data_type;
 
   public:
@@ -24,7 +24,7 @@ namespace klee {
 
     PTree(const data_type &_root);
     ~PTree();
-    
+
     std::pair<Node*,Node*> split(Node *n,
                                  const data_type &leftData,
                                  const data_type &rightData);
@@ -39,6 +39,9 @@ namespace klee {
     PTreeNode *parent, *left, *right;
     ExecutionState *data;
     ref<Expr> condition;
+
+    //muchang
+    bool isPosterityOf(const PTreeNode* _ptreeNode) ;
 
   private:
     PTreeNode(PTreeNode *_parent, ExecutionState *_data);

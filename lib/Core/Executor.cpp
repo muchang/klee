@@ -3419,6 +3419,7 @@ void Executor::runFunctionAsMain(Function *f,
   processTree = new PTree(state);
   state->ptreeNode = processTree->root;
   run(*state);
+  this->cilInfoTable->print();
   delete processTree;
   processTree = 0;
 
