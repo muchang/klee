@@ -22,33 +22,39 @@ namespace klee {
 	  std::string func_name;
 	  std::string func_id;
 	  std::string stmt_id;
-	  std::string cutpoint;
+	  std::string cutpoints;
 
     PTreeNode* ptreeNode;
 
 	  bool operator == (const Point& );
 	  void print();
+    void read(std::ifstream& fin);
   };
 
   struct Definition : public Point {
 	  bool withSameVariableAs(const Definition& );
 	  bool operator == (const Definition& );
 	  void print();
-	  void readFromIfstream(std::ifstream& fin);
   };
 
   struct Use : public Point {
     std::string kind;
 	  bool operator == (const Use& );
 	  void print();
-	  void readFromIfstream(std::ifstream& fin);
+  };
+
+  struct Cutpoint : public Point {
+    bool operator == (const Point& );
+    Cutpoint(std::string);
+    void print();
   };
 
   struct DefUsePair {
     std::string dua_id;
     Definition def;
     Use use;
-    std::vector<Definition> redefineList;
+    std::vector<Definition> redefines;
+    std::vector<Cutpoint> cutpoints;
     /*
     status:
       0:UnReach,
@@ -57,9 +63,9 @@ namespace klee {
       3:Redefine,
     */
     int status;
-
+    bool initCutpoints();
     bool checkRedefine(const Use&);
-    bool readFromIfstream(std::ifstream& fin);
+    bool read(std::ifstream& );
     bool updateStatus(const Definition& );
     bool updateStatus(const Use& );
     void print();
@@ -71,8 +77,7 @@ namespace klee {
 	  std::vector<DefUsePair> defUseList;
 
   public:
-	 CilInfoTable(std::string cilInfoFile);
-    ~CilInfoTable();
+	  CilInfoTable(std::string cilInfoFile);
 
     unsigned getSize() const;
     /*Print the content of the CilInfoTable*/

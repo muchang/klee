@@ -5,10 +5,21 @@ using namespace klee;
 
 class PTreeNode;
 
+std::vector<std::string> split(const std::string &s, char delim) {
+	  std::vector<std::string> elems;
+    std::stringstream ss(s);
+		std::string item;
+    while (std::getline(ss, item, delim)) {
+				std::cerr << item << std::endl;
+        elems.push_back(item);
+    }
+    return elems;
+}
+
+
 bool Point::operator== (const Point& _point) {
 	if (this->file_name == _point.file_name &&
 			this->func_id == _point.func_id &&
-			this->func_name == _point.func_name &&
 			this->stmt_id == _point.stmt_id &&
 			this->var_id == _point.var_id &&
 			this->var_line == _point.var_line &&
@@ -19,7 +30,17 @@ bool Point::operator== (const Point& _point) {
 }
 
 void Point::print() {
-	std::cerr << var_name << " " << var_id << " " << var_line << " " << file_name << " " << func_name << " " << func_id << " " << stmt_id << " " << cutpoint << "\n" ;
+	std::cerr << var_name << " " << var_id << " " << var_line << " " << file_name << " " << func_name << " " << func_id << " " << stmt_id << " " << cutpoints << "\n" ;
+}
+
+void Point::read(std::ifstream& fin) {
+	fin >> var_name >> var_id >> var_line >> file_name >> func_name >> func_id >> stmt_id;
+	std::string tmp_cutpoints;
+	fin >> tmp_cutpoints;
+	if(tmp_cutpoints == "no")
+		cutpoints = "";
+	else
+		cutpoints = tmp_cutpoints.substr(0,tmp_cutpoints.length()-1);
 }
 
 bool Definition::withSameVariableAs(const Definition& _def) {
@@ -52,11 +73,6 @@ bool Definition::operator== (const Definition& _def) {
 			return false;
 }
 
-
-void Definition::readFromIfstream(std::ifstream& fin) {
-	fin >> var_name >> var_id >> var_line >> file_name >> func_name >> func_id >> stmt_id >> cutpoint;
-}
-
 void Use::print() {
 	std::cerr << "Use: " << "use_kind: " << kind << " ";
 	Point::print();
@@ -76,8 +92,19 @@ bool Use::operator== (const Use& _use){
 			return false;
 }
 
-void Use::readFromIfstream(std::ifstream& fin){
-	fin >> var_name >> var_id >> var_line >> file_name >> func_name >> func_id >> stmt_id >> cutpoint;
+Cutpoint::Cutpoint(std::string sequence) {
+	std::vector<std::string> sequenceList = split(sequence,':');
+	//need assert
+	func_id = sequenceList[0];
+	stmt_id = sequenceList[1];
+	var_line = sequenceList[3];
+	print();
+}
+
+void Cutpoint::print() {
+	std::cerr << "func_id:" << func_id << "\n";
+	std::cerr << "stmt_id:" << stmt_id << "\n";
+	std::cerr << "var_line:" << var_line << "\n";
 }
 
 bool DefUsePair::updateStatus(const Definition& defPoint) {
@@ -87,7 +114,7 @@ bool DefUsePair::updateStatus(const Definition& defPoint) {
 		return true;
 	}
 	if(status == 1 && def.withSameVariableAs(defPoint)) {
-		redefineList.push_back(defPoint);
+		redefines.push_back(defPoint);
 		return true;
 	}
 	return false;
@@ -106,7 +133,7 @@ bool DefUsePair::updateStatus(const Use& usePoint) {
 
 bool DefUsePair::checkRedefine(const Use& usePoint) {
 	std::vector<klee::Definition>::iterator it;
-	for(it = redefineList.begin(); it != redefineList.end(); ++it){
+	for(it = redefines.begin(); it != redefines.end(); ++it){
 		if(usePoint.ptreeNode->isPosterityOf(it->ptreeNode)){
 			status = 3;
 			return false;
@@ -115,19 +142,35 @@ bool DefUsePair::checkRedefine(const Use& usePoint) {
 	return true;
 }
 
-bool DefUsePair::readFromIfstream(std::ifstream& fin){
+bool DefUsePair::read(std::ifstream& fin){
 	fin >> dua_id;
 	if(fin.good()){
 		fin >> use.kind;
-		def.readFromIfstream(fin);
-		use.readFromIfstream(fin);
+		def.read(fin);
+		use.read(fin);
 		fin >> status;
 		print();
+		initCutpoints();
 		return true;
 	}
 	else{
 		return false;
 	}
+}
+
+bool DefUsePair::initCutpoints() {
+	std::string sequence;
+	if(def.cutpoints == "")
+		 sequence = use.cutpoints;
+	else
+		sequence = def.cutpoints + ";" + use.cutpoints;
+	std::vector<std::string> sequenceList = split(sequence,';');
+	std::vector<std::string>::iterator it;
+	for (it = sequenceList.begin() ; it != sequenceList.end(); ++it){
+		Cutpoint cutpoint(*it);
+		cutpoints.push_back(cutpoint);
+	}
+	return true;
 }
 
 void DefUsePair::print() {
@@ -143,7 +186,7 @@ CilInfoTable::CilInfoTable(std::string cilInfoFile){
 	//Read def-use pairs from the file defined by def-use-file command line option.
 	while(1){
 		DefUsePair dupair;
-		if(dupair.readFromIfstream(fin)){
+		if(dupair.read(fin)){
 			defUseList.push_back(dupair);
 		}
 		else{
@@ -152,10 +195,6 @@ CilInfoTable::CilInfoTable(std::string cilInfoFile){
 		}
 	}
 	fin.close();
-}
-
-CilInfoTable::~CilInfoTable() {
-
 }
 
 void CilInfoTable::update(const Definition& keyPoint){
