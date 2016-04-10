@@ -638,7 +638,14 @@ DataFlowSearcher::~DataFlowSearcher(){
 
 ExecutionState &DataFlowSearcher::selectState() {
   std::cerr << "states size" << states.size() << "\n";
-  return *states.back();
+  std::vector<ExecutionState*>::iterator candidate;
+  std::vector<ExecutionState*>::iterator it;
+  for (it = states.begin(), candidate = states.begin() ; it != states.end(); ++it) {
+    if ((*candidate)->weight < (*it)->weight) {
+      candidate = it;
+    }
+  }
+  return **candidate;
 }
 
 void DataFlowSearcher::update(ExecutionState *current,

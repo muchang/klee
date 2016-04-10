@@ -791,7 +791,7 @@ void SpecialFunctionHandler::handleCilInfo(ExecutionState &state,
 	std::string func_id = readStringAtAddress(state, arguments[6]);
 	std::string stmt_id = readStringAtAddress(state, arguments[7]);
 
-	if(point_kind == "-1") {
+	if(point_kind == "0") {
 		Definition def;
 		def.var_name = var_name;
 		def.var_id = var_id;
@@ -814,7 +814,12 @@ void SpecialFunctionHandler::handleCilInfo(ExecutionState &state,
 		use.func_id  = func_id;
 		use.stmt_id = stmt_id;
     use.ptreeNode = state.ptreeNode;
-		executor.cilInfoTable->update(use);
+		if (executor.cilInfoTable->update(use)) {
+      state.weight += 10;
+      if(executor.cilInfoTable->clearAllPair()) {
+        executor.states.clear();
+      }
+    }
 	}
   executor.cilInfoTable->print();
 }

@@ -5,6 +5,8 @@ using namespace klee;
 
 class PTreeNode;
 
+
+/* A tool function split the string by the delim. */
 std::vector<std::string> split(const std::string &s, char delim) {
 	  std::vector<std::string> elems;
     std::stringstream ss(s);
@@ -16,7 +18,7 @@ std::vector<std::string> split(const std::string &s, char delim) {
     return elems;
 }
 
-
+/* Point struct. */
 bool Point::operator== (const Point& _point) {
 	if (this->file_name == _point.file_name &&
 			this->func_id == _point.func_id &&
@@ -42,7 +44,9 @@ void Point::read(std::ifstream& fin) {
 	else
 		cutpoints = tmp_cutpoints.substr(0,tmp_cutpoints.length()-1);
 }
+/* End of Point struct. */
 
+/* Definition struct. */
 bool Definition::withSameVariableAs(const Definition& _def) {
 	if (this->file_name == _def.file_name &&
 			this->func_id == _def.func_id &&
@@ -72,7 +76,9 @@ bool Definition::operator== (const Definition& _def) {
 		else
 			return false;
 }
+/* End of Definition struct. */
 
+/* Use struct. */
 void Use::print() {
 	std::cerr << "Use: " << "use_kind: " << kind << " ";
 	Point::print();
@@ -91,14 +97,18 @@ bool Use::operator== (const Use& _use){
 		else
 			return false;
 }
+/* End of Use struct. */
 
+/* Cutpoint struct. */
 Cutpoint::Cutpoint(std::string sequence) {
 	std::vector<std::string> sequenceList = split(sequence,':');
 	//need assert
+	assert( sequenceList.size() == 4 );
 	func_id = sequenceList[0];
 	stmt_id = sequenceList[1];
+	kind = sequenceList[2];
 	var_line = sequenceList[3];
-	print();
+	status = 0;
 }
 
 void Cutpoint::print() {
@@ -106,16 +116,16 @@ void Cutpoint::print() {
 	std::cerr << "stmt_id:" << stmt_id << "\n";
 	std::cerr << "var_line:" << var_line << "\n";
 }
+/* End of Cutpoint struct. */
 
+/* DefUsePair struct. */
 bool DefUsePair::updateStatus(const Definition& defPoint) {
 	if(def == defPoint && (status == 0 || status == 3)) {
 		status = 1;
 		def.ptreeNode = defPoint.ptreeNode;
-		return true;
 	}
 	if(status == 1 && def.withSameVariableAs(defPoint)) {
 		redefines.push_back(defPoint);
-		return true;
 	}
 	return false;
 }
@@ -126,9 +136,32 @@ bool DefUsePair::updateStatus(const Use& usePoint) {
 			&& usePoint.ptreeNode->isPosterityOf(def.ptreeNode)
 			&& checkRedefine(usePoint)) {
 		status = 2;
-		return true;
 	}
-	return false;
+  return updateCutpointsStatus(usePoint);
+}
+
+bool DefUsePair::updateCutpointsStatus(const Use& use) {
+	bool flag = false;
+	std::vector<Cutpoint>::iterator it;
+	for (it = cutpoints.begin() ; it != cutpoints.end(); ++it){
+		if(it->func_id == use.func_id &&
+			 it->stmt_id == use.stmt_id &&
+		 	 it->var_line == use.var_line &&
+		 	 equalKind(use,*it) ){
+			 it->status = 1;
+			 flag = true;
+		}
+	}
+	return flag;
+}
+
+bool DefUsePair::equalKind(const Use& use, const Cutpoint& cutpoint) {
+	if(use.kind == "1" && cutpoint.kind == "0")
+		return true;
+	else if(use.kind == "2" && cutpoint.kind == "1")
+		return true;
+	else
+		return false;
 }
 
 bool DefUsePair::checkRedefine(const Use& usePoint) {
@@ -149,8 +182,8 @@ bool DefUsePair::read(std::ifstream& fin){
 		def.read(fin);
 		use.read(fin);
 		fin >> status;
-		print();
 		initCutpoints();
+		print();
 		return true;
 	}
 	else{
@@ -173,13 +206,23 @@ bool DefUsePair::initCutpoints() {
 	return true;
 }
 
+void DefUsePair::printCutpoints() {
+	std::vector<Cutpoint>::iterator it;
+	for (it = cutpoints.begin() ; it != cutpoints.end(); ++it){
+		it->print();
+	}
+}
+
 void DefUsePair::print() {
 	std::cerr << dua_id << "\n";
 	def.print();
 	use.print();
+	//printCutpoints();
 	std::cerr << status << "\n\n";
 }
+/* End of DefUsePair struct. */
 
+/* CilInfoTable struct. */
 CilInfoTable::CilInfoTable(std::string cilInfoFile){
 	std::cout << "Work with DU Searcher!";
 	std::ifstream fin(cilInfoFile.c_str());
@@ -194,21 +237,58 @@ CilInfoTable::CilInfoTable(std::string cilInfoFile){
 			break;
 		}
 	}
+	cutpointLevel = 0;
 	fin.close();
 }
 
-void CilInfoTable::update(const Definition& keyPoint){
-	std::vector<klee::DefUsePair>::iterator it;
-	for(it = defUseList.begin(); it != defUseList.end(); ++it){
-		it->updateStatus(keyPoint);
+bool CilInfoTable::clearCurrentCutpointLevel() {
+	bool cutpointClear = true;
+	std::vector<DefUsePair>::iterator it;
+	for (it = defUseList.begin() ; it != defUseList.end(); ++it){
+		if(cutpointLevel >= it->cutpoints.size()){
+			cutpointClear = false;
+		}
+		else if(it->cutpoints[cutpointLevel].status == 0){
+			std::cerr << "cutpointLevel:" << cutpointLevel << "\n";
+			it->print();
+			return false;
+		}
 	}
+	cutpointLevel++;
+	std::cerr << "cutpointLevel:" << cutpointLevel << "\n";
+	return cutpointClear;
 }
 
-void CilInfoTable::update(const Use& keyPoint){
+bool CilInfoTable::clearAllPair() {
+	std::vector<DefUsePair>::iterator it;
+	for (it = defUseList.begin(); it != defUseList.end(); ++it){
+		if(it->status != 2){       //Covered
+			return false;
+		}
+	}
+	return true;
+}
+
+bool CilInfoTable::update(const Definition& keyPoint) {
+	bool flag = false;
 	std::vector<klee::DefUsePair>::iterator it;
 	for(it = defUseList.begin(); it != defUseList.end(); ++it){
-		it->updateStatus(keyPoint);
+		if(it->updateStatus(keyPoint)){
+			flag = true;
+		}
 	}
+	return flag;
+}
+
+bool CilInfoTable::update(const Use& keyPoint) {
+	bool flag = false;
+	std::vector<klee::DefUsePair>::iterator it;
+	for(it = defUseList.begin(); it != defUseList.end(); ++it){
+		if(it->updateStatus(keyPoint)){
+			flag = true;
+		}
+	}
+	return flag;
 }
 
 void CilInfoTable::print() {
@@ -217,3 +297,4 @@ void CilInfoTable::print() {
 		it->print();
 	}
 }
+/* End of CilInfoTable. */

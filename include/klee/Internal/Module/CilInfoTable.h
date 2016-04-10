@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 #include "../../lib/Core/PTree.h"
+#include "../../lib/Core/Common.h"
 
 #include <string>
 #include <vector>
@@ -44,6 +45,12 @@ namespace klee {
   };
 
   struct Cutpoint : public Point {
+    /*
+      0:UnReach
+      1:Reach
+    */
+    int status;
+    std::string kind;
     bool operator == (const Point& );
     Cutpoint(std::string);
     void print();
@@ -68,23 +75,42 @@ namespace klee {
     bool read(std::ifstream& );
     bool updateStatus(const Definition& );
     bool updateStatus(const Use& );
+    bool updateCutpointsStatus(const Use& );
     void print();
+    void printCutpoints();
+    bool equalKind(const Use&, const Cutpoint&);
+  };
+
+  struct updateResult{
+    bool update;
+    bool hitDef;
+    bool hitUse;
+    bool hitCutpoint;
+    updateResult(){
+      update = false;
+      hitDef = false;
+      hitUse = false;
+      hitCutpoint = false;
+    }
   };
 
   class CilInfoTable {
 
   private:
 	  std::vector<DefUsePair> defUseList;
+    unsigned cutpointLevel;
 
   public:
 	  CilInfoTable(std::string cilInfoFile);
 
     unsigned getSize() const;
+    bool clearCurrentCutpointLevel();
+    bool clearAllPair();
     /*Print the content of the CilInfoTable*/
     void print();
     /*Update defUsePair in CilInfoTable when meet klee_cil_info function*/
-    void update(const Definition& );
-    void update(const Use& );
+    bool update(const Definition& );
+    bool update(const Use& );
   };
 
 }
