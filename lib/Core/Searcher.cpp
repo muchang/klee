@@ -615,3 +615,55 @@ void InterleavedSearcher::update(ExecutionState *current,
          ie = searchers.end(); it != ie; ++it)
     (*it)->update(current, addedStates, removedStates);
 }
+
+///
+DataflowSearcher::DataflowSearcher(Executor &_executor) 
+  : executor(_executor) {
+  
+}
+
+ExecutionState &DataflowSearcher::selectState() {
+  int value = 0;
+  ExecutionState* select = NULL;
+  for (std::vector<ExecutionState*>::iterator it = states.begin(),
+             ie = states.end(); it != ie; ++it) {
+      ExecutionState* es = *it;
+      int evaluate = executor.kmodule->dfinfos->evaluate(es->pc);
+      // errs() << evaluate <<"\n";
+      if(evaluate > value)
+        select = es;
+      value = 0;
+  }
+  if(select != NULL)
+    return *select;
+  else  
+    return *states.back();
+}
+
+void DataflowSearcher::update(ExecutionState *current,
+                         const std::set<ExecutionState*> &addedStates,
+                         const std::set<ExecutionState*> &removedStates) {
+  states.insert(states.end(),
+                addedStates.begin(),
+                addedStates.end());
+  for (std::set<ExecutionState*>::const_iterator it = removedStates.begin(),
+         ie = removedStates.end(); it != ie; ++it) {
+    ExecutionState *es = *it;
+    if (es == states.back()) {
+      states.pop_back();
+    } else {
+      bool ok = false;
+
+      for (std::vector<ExecutionState*>::iterator it = states.begin(),
+             ie = states.end(); it != ie; ++it) {
+        if (es==*it) {
+          states.erase(it);
+          ok = true;
+          break;
+        }
+      }
+
+      assert(ok && "invalid state removed");
+    }
+  }
+}

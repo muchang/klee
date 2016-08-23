@@ -20,7 +20,6 @@
 #include "klee/Internal/Module/Cell.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/InstructionInfoTable.h"
-#include "klee/Internal/Module/DataFlowInfoTable.h"
 #include "klee/Internal/Support/Debug.h"
 #include "klee/Internal/Support/ModuleUtil.h"
 
@@ -297,7 +296,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
 
   // DataFlow Analysis on module to find
   // def-use pair and some assistant info.
-  new DataFlowInfoTable(module);
+  dfinfos = new DataFlowInfoTable(module);
 
   // Inject checks prior to optimization... we also perform the
   // invariant transformations that we will end up doing later so that

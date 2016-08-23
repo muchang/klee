@@ -62,6 +62,10 @@ namespace {
   UseBumpMerge("use-bump-merge", 
            cl::desc("Enable support for klee_merge() (extra experimental)"));
 
+  cl::opt<bool>
+  DataFlow("dataflow-testing",
+           cl::desc("Do Dataflow Testing"));
+
 }
 
 
@@ -127,6 +131,10 @@ Searcher *klee::constructUserSearcher(Executor &executor) {
   
   if (UseIterativeDeepeningTimeSearch) {
     searcher = new IterativeDeepeningTimeSearcher(searcher);
+  }
+
+  if (DataFlow) {
+    searcher = new DataflowSearcher(executor);
   }
 
   llvm::raw_ostream &os = executor.getHandler().getInfoStream();

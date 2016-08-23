@@ -40,6 +40,8 @@ namespace klee {
     ExecutionState *data;
     ref<Expr> condition;
 
+    bool isPosterityOf(const PTreeNode* _ptreeNode);
+
   private:
     PTreeNode(PTreeNode *_parent, ExecutionState *_data);
     ~PTreeNode();

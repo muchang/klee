@@ -88,6 +88,17 @@ void PTree::dump(llvm::raw_ostream &os) {
   delete pp;
 }
 
+bool PTreeNode::isPosterityOf(const PTreeNode* _ptreeNode) {
+  PTreeNode* temp = this;
+  while(temp != NULL) {
+    if(temp == _ptreeNode)
+      return true;
+    else
+      temp = temp->parent;
+  }
+  return false;
+}
+
 PTreeNode::PTreeNode(PTreeNode *_parent, 
                      ExecutionState *_data) 
   : parent(_parent),

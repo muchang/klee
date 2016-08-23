@@ -12,6 +12,8 @@
 
 #include "klee/Config/Version.h"
 #include "klee/Interpreter.h"
+#include "klee/Internal/Module/DataFlowInfoTable.h"
+
 
 #include <map>
 #include <set>
@@ -103,6 +105,7 @@ namespace klee {
     std::set<llvm::Function*> escapingFunctions;
 
     InstructionInfoTable *infos;
+    DataFlowInfoTable *dfinfos;
 
     std::vector<llvm::Constant*> constants;
     std::map<llvm::Constant*, KConstant*> constantMap;

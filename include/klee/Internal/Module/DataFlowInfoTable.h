@@ -11,6 +11,9 @@
 #include <iostream>
 
 #include "llvm/IR/Argument.h"
+#include "klee/Internal/Module/KInstruction.h"
+#include "../../lib/Core/PTree.h"
+#include "klee/ExecutionState.h"
 
 namespace llvm {
   class Function;
@@ -29,39 +32,73 @@ namespace klee {
     LocDef
   };
 
-  struct Branch {
+  struct CutPoint {
+    llvm::BasicBlock *basicblock;
     llvm::Instruction *inst;
+    void print();
+    int evaluate(KInstruction *kinstruction);
   };
 
-  struct Definition  {
-	  llvm::Instruction *inst;
+  struct DataFlowInstruction {
+    llvm::Instruction *inst;
+    std::vector<CutPoint> cutpoints;
+    PTreeNode* ptreeNode;
+    bool pass;
+
+    DataFlowInstruction(){pass = false;};
+    void dominatorAnalysis(llvm::Module* m);
+    void print();
+  };
+
+  struct Branch : DataFlowInstruction {
+    void print();
+  };
+
+  struct Definition : DataFlowInstruction  {
     llvm::Argument *arg; 
     DefType type;
+
+    void print();
+    int evaluate(KInstruction *kinstruction);
   };
 
-  struct Use  {
-	  llvm::Instruction *inst;
+  struct Use : DataFlowInstruction  {
     std::vector<Branch> branchs;
     UseType type;
+    
+    void print();
+    int evaluate(KInstruction *kinstruction);
   };
 
   struct DefUseChain {
     Definition definition;
     std::vector<Use> uselist;
+    std::vector<Use>::iterator target;
+    bool pass;
 
-  public:
+    DefUseChain(){pass = false;}
     void print();
-    bool updateState(klee::KInstruction *kinstruction);
+    void update(ExecutionState &state, KInstruction *kinstruction);
+    int evaluate(KInstruction *kinstruction);
+    bool stepTarget();
   };
 
   class DataFlowInfoTable {
   private:
 	  std::vector<DefUseChain> defuseSet;
+    std::vector<DefUseChain>::iterator target;
+
   public:
     DataFlowInfoTable(llvm::Module *m);
     ~DataFlowInfoTable();
     void printDefUseSet();
-    bool updateState(klee::KInstruction *kinstruction)
+    void update(ExecutionState &state, KInstruction *kinstruction);
+
+    // Evaluate the instruction value
+    // (the more def-use pair instruction could guide to the high value it will get)
+    int evaluate(KInstruction *kinstruction);
+    bool stepTarget();
+    bool targetPass();
   };
 
 }

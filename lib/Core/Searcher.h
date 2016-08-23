@@ -299,6 +299,22 @@ namespace klee {
     }
   };
 
+  class DataflowSearcher : public Searcher {
+    std::vector<ExecutionState*> states;
+    Executor &executor;
+
+  public:
+    DataflowSearcher(Executor &executor);
+    ExecutionState &selectState();
+    void update(ExecutionState *current,
+                const std::set<ExecutionState*> &addedStates,
+                const std::set<ExecutionState*> &removedStates);
+    bool empty() { return states.empty(); }
+    void printName(llvm::raw_ostream &os) {
+      os << "DFSSearcher\n";
+    }
+  };
+
 }
 
 #endif
