@@ -625,7 +625,6 @@ void InterleavedSearcher::update(ExecutionState *current,
     (*it)->update(current, addedStates, removedStates);
 }
 
-///
 
 //muchang
 DataFlowSearcher::DataFlowSearcher(Executor &_executor)
@@ -649,6 +648,7 @@ ExecutionState &DataFlowSearcher::selectState() {
 }
 
 void DataFlowSearcher::update(ExecutionState *current,
+
                          const std::set<ExecutionState*> &addedStates,
                          const std::set<ExecutionState*> &removedStates) {
   states.insert(states.end(),

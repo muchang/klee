@@ -64,9 +64,15 @@ namespace {
   UseBumpMerge("use-bump-merge", 
            cl::desc("Enable support for klee_merge() (extra experimental)"));
 
+<<<<<<< HEAD
   cl::opt<std::string>
   UseDataFlow("use-data-flow-with",
   	  	   cl::desc("Use data flow search with file contents cil def-use info"));
+=======
+  cl::opt<bool>
+  DataFlow("dataflow-testing",
+           cl::desc("Do Dataflow Testing"));
+>>>>>>> llvm-version-dev
 
 }
 
@@ -135,10 +141,8 @@ Searcher *klee::constructUserSearcher(Executor &executor) {
     searcher = new IterativeDeepeningTimeSearcher(searcher);
   }
 
-  if(UseDataFlow != ""){
-  	std::cerr << "Work with data-flow Searcher!";
-  	searcher = new DataFlowSearcher(executor);
-  	executor.setCilInfoTable(UseDataFlow);
+  if (DataFlow) {
+    searcher = new DataflowSearcher(executor);
   }
 
   llvm::raw_ostream &os = executor.getHandler().getInfoStream();

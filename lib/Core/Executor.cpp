@@ -266,7 +266,6 @@ namespace {
   cl::opt<unsigned int>
   checkLine("check-line",
             cl::init(0));
-
 }
 
 
@@ -1166,7 +1165,7 @@ void Executor::stepInstruction(ExecutionState &state) {
   ++state.pc;
 
   if (stats::instructions==StopAfterNInstructions)
-    haltExecution = true;
+    terminateStateEarly(state, "Execution halting.");//haltExecution = true; muchang
 }
 
 void Executor::executeCall(ExecutionState &state,
@@ -1423,6 +1422,7 @@ static inline const llvm::fltSemantics * fpWidthToSemantics(unsigned width) {
 
 //muchang
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
+  kmodule->dfinfos->update(state,ki);
   Instruction *i = ki->inst;
   std::cerr << "id:" << ki->info->id << " assemblyLine: " << ki->info->assemblyLine << " Line:" << ki->info->line << "\n";
 
@@ -1444,7 +1444,6 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
       terminateStateOnExit(state);
     } else {
       state.popFrame();
-
       if (statsTracker)
         statsTracker->framePopped(state);
 
@@ -2578,6 +2577,11 @@ void Executor::run(ExecutionState &initialState) {
   searcher->update(0, states, std::set<ExecutionState*>());
 
   while (!states.empty() && !haltExecution) {
+    if(kmodule->dfinfos->targetPass()) {
+      llvm::errs() << "KLEE: Already meet target, dumping remaining states\n";
+      //states.clear();
+      break;
+    }
     ExecutionState &state = searcher->selectState();
     KInstruction *ki = state.pc;
     stepInstruction(state);
@@ -2619,23 +2623,46 @@ void Executor::run(ExecutionState &initialState) {
       }
     }
     updateStates(&state);
+      //muchang
+    if(kmodule->dfinfos->targetPass()) {
+      llvm::errs() << "KLEE: Meet target\n";
+      terminateStateEarly(state, "Meet target.");
+      for (std::set<ExecutionState*>::iterator
+           it = states.begin(), ie = states.end();
+         it != ie; ++it) {
+        ExecutionState &state = **it;
+        stepInstruction(state); // keep stats rolling
+        terminateState(state);
+      }
+      if(!states.empty())
+        llvm::errs() << "states not empty\n";
+      break;
+    }
   }
 
-  delete searcher;
+  llvm::errs() << "set haltExecution to false\n";   
+  if(haltExecution) {
+    haltExecution = false;
+  }
+  
+  delete searcher; 
   searcher = 0;
 
  dump:
   if (DumpStatesOnHalt && !states.empty()) {
+    
     llvm::errs() << "KLEE: halting execution, dumping remaining states\n";
     for (std::set<ExecutionState*>::iterator
            it = states.begin(), ie = states.end();
          it != ie; ++it) {
+           llvm::errs() << "KKKKKKKKK\n"; 
       ExecutionState &state = **it;
       stepInstruction(state); // keep stats rolling
       terminateStateEarly(state, "Execution halting.");
     }
     updateStates(0);
   }
+  
 }
 
 std::string Executor::getAddressInfo(ExecutionState &state,
@@ -3337,8 +3364,12 @@ void Executor::runFunctionAsMain(Function *f,
 				 int argc,
 				 char **argv,
 				 char **envp) {
-  std::vector<ref<Expr> > arguments;
+  do{
+    // muchang
+    // int stepPair = StepPair;
+    // while(stepPair != 0 && kmodule->dfinfos->stepTarget()) stepPair--;
 
+<<<<<<< HEAD
   // force deterministic initialization of memory objects
   srand(1);
   srandom(1);
@@ -3365,15 +3396,47 @@ void Executor::runFunctionAsMain(Function *f,
                                 f->begin()->begin());
 
       arguments.push_back(argvMO->getBaseExpr());
+=======
+    std::vector<ref<Expr> > arguments;
+
+    // force deterministic initialization of memory objects
+    srand(1);
+    srandom(1);
+    
+    MemoryObject *argvMO = 0;
+
+    // In order to make uclibc happy and be closer to what the system is
+    // doing we lay out the environments at the end of the argv array
+    // (both are terminated by a null). There is also a final terminating
+    // null that uclibc seems to expect, possibly the ELF header?
+
+    int envc;
+    for (envc=0; envp[envc]; ++envc) ;
+
+    unsigned NumPtrBytes = Context::get().getPointerWidth() / 8;
+    KFunction *kf = kmodule->functionMap[f];
+    assert(kf);
+    Function::arg_iterator ai = f->arg_begin(), ae = f->arg_end();
+    if (ai!=ae) {
+      arguments.push_back(ConstantExpr::alloc(argc, Expr::Int32));
+>>>>>>> llvm-version-dev
 
       if (++ai!=ae) {
-        uint64_t envp_start = argvMO->address + (argc+1)*NumPtrBytes;
-        arguments.push_back(Expr::createPointer(envp_start));
+        argvMO = memory->allocate((argc+1+envc+1+1) * NumPtrBytes, false, true,
+                                  f->begin()->begin());
+        
+        arguments.push_back(argvMO->getBaseExpr());
 
-        if (++ai!=ae)
-          klee_error("invalid main function (expect 0-3 arguments)");
+        if (++ai!=ae) {
+          uint64_t envp_start = argvMO->address + (argc+1)*NumPtrBytes;
+          arguments.push_back(Expr::createPointer(envp_start));
+
+          if (++ai!=ae)
+            klee_error("invalid main function (expect 0-3 arguments)");
+        }
       }
     }
+<<<<<<< HEAD
   }
 
   ExecutionState *state = new ExecutionState(kmodule->functionMap[f]);
@@ -3382,18 +3445,25 @@ void Executor::runFunctionAsMain(Function *f,
     state->pathOS = pathWriter->open();
   if (symPathWriter)
     state->symPathOS = symPathWriter->open();
+=======
+>>>>>>> llvm-version-dev
+
+    ExecutionState *state = new ExecutionState(kmodule->functionMap[f]);
+    
+    if (pathWriter) 
+      state->pathOS = pathWriter->open();
+    if (symPathWriter) 
+      state->symPathOS = symPathWriter->open();
 
 
-  if (statsTracker)
-    statsTracker->framePushed(*state, 0);
+    if (statsTracker)
+      statsTracker->framePushed(*state, 0);
 
-  assert(arguments.size() == f->arg_size() && "wrong number of arguments");
-  for (unsigned i = 0, e = f->arg_size(); i != e; ++i)
-    bindArgument(kf, i, *state, arguments[i]);
+    assert(arguments.size() == f->arg_size() && "wrong number of arguments");
+    for (unsigned i = 0, e = f->arg_size(); i != e; ++i)
+      bindArgument(kf, i, *state, arguments[i]);
 
-  if (argvMO) {
-    ObjectState *argvOS = bindObjectInState(*state, argvMO, false);
-
+<<<<<<< HEAD
     for (int i=0; i<argc+1+envc+1+1; i++) {
       if (i==argc || i>=argc+1+envc) {
         // Write NULL pointer
@@ -3406,11 +3476,30 @@ void Executor::runFunctionAsMain(Function *f,
         ObjectState *os = bindObjectInState(*state, arg, false);
         for (j=0; j<len+1; j++)
           os->write8(j, s[j]);
+=======
+    if (argvMO) {
+      ObjectState *argvOS = bindObjectInState(*state, argvMO, false);
+>>>>>>> llvm-version-dev
 
-        // Write pointer to newly allocated and initialised argv/envp c-string
-        argvOS->write(i * NumPtrBytes, arg->getBaseExpr());
+      for (int i=0; i<argc+1+envc+1+1; i++) {
+        if (i==argc || i>=argc+1+envc) {
+          // Write NULL pointer
+          argvOS->write(i * NumPtrBytes, Expr::createPointer(0));
+        } else {
+          char *s = i<argc ? argv[i] : envp[i-(argc+1)];
+          int j, len = strlen(s);
+          
+          MemoryObject *arg = memory->allocate(len+1, false, true, state->pc->inst);
+          ObjectState *os = bindObjectInState(*state, arg, false);
+          for (j=0; j<len+1; j++)
+            os->write8(j, s[j]);
+
+          // Write pointer to newly allocated and initialised argv/envp c-string
+          argvOS->write(i * NumPtrBytes, arg->getBaseExpr());
+        }
       }
     }
+<<<<<<< HEAD
   }
 
   initializeGlobals(*state);
@@ -3428,9 +3517,28 @@ void Executor::runFunctionAsMain(Function *f,
 
   globalObjects.clear();
   globalAddresses.clear();
+=======
 
-  if (statsTracker)
-    statsTracker->done();
+    initializeGlobals(*state);
+
+    processTree = new PTree(state);
+    state->ptreeNode = processTree->root;
+    run(*state);
+    kmodule->dfinfos->printDefUseSet();
+    delete processTree;
+    processTree = 0;
+>>>>>>> llvm-version-dev
+
+    // hack to clear memory objects
+    delete memory;
+    memory = new MemoryManager();
+    
+    globalObjects.clear();
+    globalAddresses.clear();
+
+    if (statsTracker)
+      statsTracker->done();
+  }while(kmodule->dfinfos->stepTarget());
 }
 
 unsigned Executor::getPathStreamID(const ExecutionState &state) {
