@@ -2575,7 +2575,8 @@ void Executor::run(ExecutionState &initialState) {
 
   while (!states.empty() && !haltExecution) {
     if(kmodule->dfinfos->targetPass()) {
-      llvm::errs() << "KLEE: Already meet target, dumping remaining states\n";
+      //muchang-print
+      //llvm::errs() << "KLEE: Already meet target, dumping remaining states\n";
       //states.clear();
       break;
     }
@@ -2623,7 +2624,8 @@ void Executor::run(ExecutionState &initialState) {
     updateStates(&state);
       //muchang
     if(kmodule->dfinfos->targetPass()) {
-      llvm::errs() << "KLEE: Meet target\n";
+      //muchang-print
+      //llvm::errs() << "KLEE: Meet target\n";
       terminateStateEarly(state, "Meet target.");
       for (std::set<ExecutionState*>::iterator
            it = states.begin(), ie = states.end();
@@ -2633,12 +2635,14 @@ void Executor::run(ExecutionState &initialState) {
         terminateState(state);
       }
       if(!states.empty())
-        llvm::errs() << "states not empty\n";
+        //muchang-print
+        //llvm::errs() << "states not empty\n";
       break;
     }
   }
-
-  llvm::errs() << "set haltExecution to false\n";   
+  
+  //muchang-print
+  //llvm::errs() << "set haltExecution to false\n";   
   if(haltExecution) {
     haltExecution = false;
   }
@@ -2653,7 +2657,8 @@ void Executor::run(ExecutionState &initialState) {
     for (std::set<ExecutionState*>::iterator
            it = states.begin(), ie = states.end();
          it != ie; ++it) {
-           llvm::errs() << "KKKKKKKKK\n"; 
+      //muchang-print
+      //llvm::errs() << "KKKKKKKKK\n"; 
       ExecutionState &state = **it;
       stepInstruction(state); // keep stats rolling
       terminateStateEarly(state, "Execution halting.");
@@ -3362,10 +3367,9 @@ void Executor::runFunctionAsMain(Function *f,
 				 int argc,
 				 char **argv,
 				 char **envp) {
-  do{
     // muchang
-    // int stepPair = StepPair;
-    // while(stepPair != 0 && kmodule->dfinfos->stepTarget()) stepPair--;
+    int stepPair = StepPair;
+    while(stepPair != 0 && kmodule->dfinfos->stepTarget()) stepPair--;
 
     std::vector<ref<Expr> > arguments;
 
@@ -3461,7 +3465,6 @@ void Executor::runFunctionAsMain(Function *f,
 
     if (statsTracker)
       statsTracker->done();
-  }while(kmodule->dfinfos->stepTarget());
 }
 
 unsigned Executor::getPathStreamID(const ExecutionState &state) {

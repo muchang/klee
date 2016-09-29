@@ -30,20 +30,30 @@ int CutPoint::evaluate(KInstruction *kinstruction) {
 }
 
 void DataFlowInstruction::dominatorAnalysis(llvm::Module* m) {
+     int count=0; 
      for (Module::iterator fnIt = m->begin(), fn_ie = m->end(); 
         fnIt != fn_ie; ++fnIt) {
+           //declare void @llvm.dbg.declare(metadata, metadata) #1
+        //    if(fnIt->isIntrinsic()) {
+        //        continue;
+        //     }
+            if((fnIt->getBasicBlockList()).empty() ){
+               continue;;
+            }
+            count++;
+            
             llvm::Function* F = fnIt;
             DominatorTree* DT=new DominatorTree();
             DT->runOnFunction(*F);
-
+            
             BasicBlock* BB = inst->getParent();
             DomTreeNodeBase<BasicBlock> *IDomA = DT->getNode(BB);
             while(IDomA) {
                 CutPoint cp;
                 cp.basicblock = IDomA->getBlock();
-                errs() << "\e[34mBB:" << *cp.basicblock << "\e[0m\n";
+                //errs() << "\e[34mBB:" << *cp.basicblock << "\e[0m\n";
                 cp.inst = cp.basicblock->begin();
-                errs() << "\e[35mFirst Inst:" << *cp.inst << "\e[0m\n\n";
+                //errs() << "\e[35mFirst Inst:" << *cp.inst << "\e[0m\n\n";
                 IDomA = IDomA->getIDom();
                 cutpoints.push_back(cp);
             }
@@ -191,7 +201,6 @@ int DefUseChain::evaluate(KInstruction *kinstruction) {
 bool DefUseChain::stepTarget() {
     target++;
     if(target == uselist.end()) {
-        errs() << "?????????????????\n";
         return false;
     }
     else {
@@ -204,7 +213,7 @@ DataFlowInfoTable::DataFlowInfoTable(llvm::Module *m) {
         fnIt != fn_ie; ++fnIt) {
 
     for (inst_iterator I = inst_begin(fnIt), ie = inst_end(fnIt); I != ie;++I) {
-        errs() << "\e[34mI:" << *I << "\e[0m\n";
+        //errs() << "\e[34mI:" << *I << "\e[0m\n";
 
         // Analysis each variables of the Instruction.
         for (User::op_iterator oi = I->op_begin(), e = I->op_end(); oi != e; ++oi) {
@@ -218,14 +227,14 @@ DataFlowInfoTable::DataFlowInfoTable(llvm::Module *m) {
             if(duchain.definition.inst = dyn_cast<Instruction>(*oi)) {
                 duchain.definition.type = LocDef;
                 pass = true;
-                errs() << "\e[32mV:" << *v << "\e[0m\n";
+                //errs() << "\e[32mV:" << *v << "\e[0m\n";
                 duchain.definition.dominatorAnalysis(m);
             }
             // definition from argument record in member variable arg
             else if(duchain.definition.arg = dyn_cast<Argument>(*oi)){
                 duchain.definition.type = ArgDef;
                 pass = true;
-                errs() << "\e[35mV:" << *v << "\e[0m\n";
+                //errs() << "\e[35mV:" << *v << "\e[0m\n";
             }
 
             // find the use of the definition
@@ -238,16 +247,16 @@ DataFlowInfoTable::DataFlowInfoTable(llvm::Module *m) {
                         // when we meet p-use instruction use key word Br.
                         if(In->getOpcode() == Instruction::Br) {
                             use.type = Puse;
-                            errs() << "  is used in instruction:\n";
-                            errs() << "\e[40mB:" << *In << "\e[0m\n";
+                            //errs() << "  is used in instruction:\n";
+                            //errs() << "\e[40mB:" << *In << "\e[0m\n";
                             for (User::op_iterator opi = In->op_begin(), e = In->op_end(); opi != e; ++opi) {
                                 if(BasicBlock *Bb = dyn_cast<BasicBlock>(*opi)) {
                                     Branch branch;
-                                    errs() << "\e[40mB:" << *Bb << "\e[0m\n";
+                                    //errs() << "\e[40mB:" << *Bb << "\e[0m\n";
                                     BasicBlock::iterator inst = Bb->begin();
                                     branch.inst = inst;
                                     use.branchs.push_back(branch);
-                                    errs() << "\e[33m" << *inst << "\e[0m\n";
+                                    //errs() << "\e[33m" << *inst << "\e[0m\n";
                                 }
                             }
                         }
@@ -255,8 +264,8 @@ DataFlowInfoTable::DataFlowInfoTable(llvm::Module *m) {
                         // into the uselist.
                         else {
                             use.type = Cuse;
-                            errs() << "  is used in instruction:\n";
-                            errs() << "\e[33m" << *In << "\e[0m\n";
+                            //errs() << "  is used in instruction:\n";
+                            //errs() << "\e[33m" << *use.inst << "\e[0m\n";
                         }
                         use.dominatorAnalysis(m);
                         duchain.uselist.push_back(use);
@@ -265,11 +274,11 @@ DataFlowInfoTable::DataFlowInfoTable(llvm::Module *m) {
                 defuseSet.push_back(duchain); 
             }
         }  // User::op_iterator 
-        errs() << "\n";
-        errs() << "*********************************************\n";
+        //errs() << "\n";
+        //errs() << "*********************************************\n";
     }  // inst_iterator
   } // Module::iterator
-  printDefUseSet();
+  //printDefUseSet();
   target = defuseSet.begin();
   target->target = target->uselist.begin();
 }
@@ -278,7 +287,6 @@ void DataFlowInfoTable::printDefUseSet(){
     int total = 0;
     int pass = 0;
     for(std::vector<DefUseChain>::iterator it = defuseSet.begin(); it != defuseSet.end(); ++it) {
-        //it->print();
         std::vector<Use>::iterator use;
         for(use = it->uselist.begin(); use != it->uselist.end(); ++use) {
             total = total + 1;
@@ -306,7 +314,6 @@ int DataFlowInfoTable::evaluate(KInstruction *kinstruction) {
 
 bool DataFlowInfoTable::targetPass() {
     if(target->target->pass == true){
-        errs() << target->target->inst << "\n";
         return true;
     }    
     else {
