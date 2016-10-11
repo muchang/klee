@@ -30,18 +30,11 @@ int CutPoint::evaluate(KInstruction *kinstruction) {
 }
 
 void DataFlowInstruction::dominatorAnalysis(llvm::Module* m) {
-     int count=0; 
      for (Module::iterator fnIt = m->begin(), fn_ie = m->end(); 
         fnIt != fn_ie; ++fnIt) {
-           //declare void @llvm.dbg.declare(metadata, metadata) #1
-        //    if(fnIt->isIntrinsic()) {
-        //        continue;
-        //     }
             if((fnIt->getBasicBlockList()).empty() ){
-               continue;;
-            }
-            count++;
-            
+               continue;
+            }      
             llvm::Function* F = fnIt;
             DominatorTree* DT=new DominatorTree();
             DT->runOnFunction(*F);
@@ -92,7 +85,7 @@ void klee::Use::print() {
 int klee::Use::evaluate(KInstruction *kinstruction) {
     int value = 0;
     if(kinstruction->inst == inst)
-        value += 50;
+        value += 100;
     // if the type of use is p-use 
     // then we print the first Instruction of branchs 
     if(type == Puse){
@@ -187,7 +180,7 @@ void DefUseChain::update(ExecutionState &state, KInstruction *kinstruction) {
 
 int DefUseChain::evaluate(KInstruction *kinstruction) {
     int value = 0;
-    value += definition.evaluate(kinstruction);
+    value = definition.evaluate(kinstruction);
 
     // print use by iterator
     // std::vector<Use>::iterator use;
@@ -304,12 +297,10 @@ void DataFlowInfoTable::update(ExecutionState &state, KInstruction *kinstruction
 }
 
 int DataFlowInfoTable::evaluate(KInstruction *kinstruction) {
-    int value = 0;
     // for(std::vector<DefUseChain>::iterator it = defuseSet.begin(); it != defuseSet.end(); ++it) {
     //     value += it->evaluate(kinstruction);
     // }
-    target->evaluate(kinstruction);
-    return value; 
+    return target->evaluate(kinstruction);
 }
 
 bool DataFlowInfoTable::targetPass() {

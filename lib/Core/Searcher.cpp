@@ -623,16 +623,14 @@ DataflowSearcher::DataflowSearcher(Executor &_executor)
 }
 
 ExecutionState &DataflowSearcher::selectState() {
-  int value = 0;
   ExecutionState* select = NULL;
   for (std::vector<ExecutionState*>::iterator it = states.begin(),
              ie = states.end(); it != ie; ++it) {
       ExecutionState* es = *it;
-      int evaluate = executor.kmodule->dfinfos->evaluate(es->pc);
+      es->weight += executor.kmodule->dfinfos->evaluate(es->pc);
       // errs() << evaluate <<"\n";
-      if(evaluate > value)
+      if(select == NULL || es->weight > select->weight)
         select = es;
-      value = 0;
   }
   if(select != NULL)
     return *select;

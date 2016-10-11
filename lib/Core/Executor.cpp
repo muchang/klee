@@ -3369,6 +3369,7 @@ void Executor::runFunctionAsMain(Function *f,
 				 char **envp) {
     // muchang
     int stepPair = StepPair;
+    errs()<< "StepPair is :" << StepPair << "\n";
     while(stepPair != 0 && kmodule->dfinfos->stepTarget()) stepPair--;
 
     std::vector<ref<Expr> > arguments;
