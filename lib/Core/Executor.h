@@ -20,7 +20,6 @@
 #include "klee/Internal/Module/Cell.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
-#include "klee/Internal/Module/CilInfoTable.h"
 
 #include "llvm/ADT/Twine.h"
 
@@ -56,7 +55,6 @@ namespace klee {
   class ExternalDispatcher;
   class Expr;
   class InstructionInfoTable;
-  class CilInfoTable;
   struct KFunction;
   struct KInstruction;
   class KInstIterator;
@@ -109,7 +107,6 @@ private:
   KModule *kmodule;
   InterpreterHandler *interpreterHandler;
   Searcher *searcher;
-  CilInfoTable *cilInfoTable;
 
   ExternalDispatcher *externalDispatcher;
   TimingSolver *solver;

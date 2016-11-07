@@ -12,6 +12,7 @@
 
 #include "klee/Config/Version.h"
 #include "klee/Interpreter.h"
+#include "klee/Internal/Module/CilInfoTable.h"
 
 #include <map>
 #include <set>
@@ -36,6 +37,7 @@ namespace klee {
   class Expr;
   class InterpreterHandler;
   class InstructionInfoTable;
+  class CilInfoTable;
   struct KInstruction;
   class KModule;
   template<class T> class ref;
@@ -103,6 +105,7 @@ namespace klee {
     std::set<llvm::Function*> escapingFunctions;
 
     InstructionInfoTable *infos;
+    CilInfoTable *dfinfos;
 
     std::vector<llvm::Constant*> constants;
     std::map<llvm::Constant*, KConstant*> constantMap;
@@ -129,6 +132,8 @@ namespace klee {
 
     /// Return an id for the given constant, creating a new one if necessary.
     unsigned getConstantID(llvm::Constant *c, KInstruction* ki);
+
+    void setCilInfoTable(std::string cilInfoFile);
   };
 } // End klee namespace
 

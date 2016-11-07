@@ -190,6 +190,7 @@ void Executor::processTimers(ExecutionState *current,
 
     if (!timers.empty()) {
       double time = util::getWallTime();
+      
 
       for (std::vector<TimerInfo*>::iterator it = timers.begin(), 
              ie = timers.end(); it != ie; ++it) {

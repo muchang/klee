@@ -9,11 +9,33 @@
 #include "../../lib/Core/PTree.h"
 #include "../../lib/Core/Common.h"
 
+#include "klee/Internal/Module/KInstruction.h"
+#include "klee/Internal/Module/InstructionInfoTable.h"
+#include "klee/ExecutionState.h"
+
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Instructions.h"
+
 #include <string>
 #include <vector>
 #include <iostream>
 
+
 namespace klee {
+  struct Cutpoint;
+
+  enum UseType {
+    Cuse,     //C-use
+    PTuse,    //P-true-use
+    PFuse,    //P-false-use
+    Puse
+  };
+
+  enum DupairStatus {
+    UnReach,
+    ReachDef,
+    Covered
+  };
 
   struct Point {
 	  std::string var_name;
@@ -23,94 +45,66 @@ namespace klee {
 	  std::string func_name;
 	  std::string func_id;
 	  std::string stmt_id;
-	  std::string cutpoints;
+    std::vector<Cutpoint> cutpoints;
 
     PTreeNode* ptreeNode;
+    llvm::Instruction *inst;
 
-	  bool operator == (const Point& );
 	  void print();
     void read(std::ifstream& fin);
+    bool equals (const KInstruction *kinstruction);
   };
 
   struct Definition : public Point {
 	  bool withSameVariableAs(const Definition& );
-	  bool operator == (const Definition& );
 	  void print();
+    int evaluate(const KInstruction *);
   };
 
   struct Use : public Point {
-    std::string kind;
-	  bool operator == (const Use& );
 	  void print();
+    int evaluate(const KInstruction *);
   };
 
   struct Cutpoint : public Point {
-    /*
-      0:UnReach
-      1:Reach
-    */
-    int status;
     std::string kind;
-    bool operator == (const Point& );
+
     Cutpoint(std::string);
     void print();
+    int evaluate(const KInstruction *);
   };
 
   struct DefUsePair {
     std::string dua_id;
     Definition def;
     Use use;
-    std::vector<Definition> redefines;
-    std::vector<Cutpoint> cutpoints;
-    /*
-    status:
-      0:UnReach,
-      1:ReachDef,
-      2:Covered,
-      3:Redefine,
-    */
-    int status;
-    bool initCutpoints();
+    UseType type;
+
+    DupairStatus status;
     bool checkRedefine(const Use&);
     bool read(std::ifstream& );
-    bool updateStatus(const Definition& );
-    bool updateStatus(const Use& );
-    bool updateCutpointsStatus(const Use& );
     void print();
-    void printCutpoints();
     bool equalKind(const Use&, const Cutpoint&);
-  };
-
-  struct updateResult{
-    bool update;
-    bool hitDef;
-    bool hitUse;
-    bool hitCutpoint;
-    updateResult(){
-      update = false;
-      hitDef = false;
-      hitUse = false;
-      hitCutpoint = false;
-    }
+    int evaluate(const KInstruction *);
+    void update(ExecutionState &state, KInstruction *kinstruction);
   };
 
   class CilInfoTable {
 
   private:
 	  std::vector<DefUsePair> defUseList;
-    unsigned cutpointLevel;
+    std::vector<DefUsePair>::iterator target;
 
   public:
-	  CilInfoTable(std::string cilInfoFile);
+	  CilInfoTable(std::string, llvm::Module *);
 
     unsigned getSize() const;
-    bool clearCurrentCutpointLevel();
-    bool clearAllPair();
     /*Print the content of the CilInfoTable*/
     void print();
     /*Update defUsePair in CilInfoTable when meet klee_cil_info function*/
-    bool update(const Definition& );
-    bool update(const Use& );
+    int evaluate(const ExecutionState &, const KInstruction *);
+    void update(ExecutionState &state, KInstruction *kinstruction);
+    bool stepTarget();
   };
 
 }

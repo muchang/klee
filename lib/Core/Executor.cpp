@@ -1423,8 +1423,9 @@ static inline const llvm::fltSemantics * fpWidthToSemantics(unsigned width) {
 
 //muchang
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
+  //kmodule->dfinfos->update(state,ki);
   Instruction *i = ki->inst;
-  std::cerr << "id:" << ki->info->id << " assemblyLine: " << ki->info->assemblyLine << " Line:" << ki->info->line << "\n";
+  //std::cerr << "id:" << ki->info->id << " assemblyLine: " << ki->info->assemblyLine << " Line:" << ki->info->line << "\n";
 
   switch (i->getOpcode()) {
     // Control flow
@@ -3418,7 +3419,7 @@ void Executor::runFunctionAsMain(Function *f,
   processTree = new PTree(state);
   state->ptreeNode = processTree->root;
   run(*state);
-  this->cilInfoTable->print();
+  //this->cilInfoTable->print();
   delete processTree;
   processTree = 0;
 
@@ -3585,5 +3586,5 @@ Interpreter *Interpreter::create(const InterpreterOptions &opts,
 }
 
 void Executor::setCilInfoTable(std::string cilInfoFile){
-	cilInfoTable = new CilInfoTable(cilInfoFile);
+	kmodule->setCilInfoTable(cilInfoFile);
 }

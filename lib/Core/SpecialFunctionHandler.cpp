@@ -82,7 +82,6 @@ static SpecialFunctionHandler::HandlerInfo handlerInfo[] = {
   addDNR("klee_silent_exit", handleSilentExit),
   addDNR("klee_report_error", handleReportError),
 
-  add("klee_cil_info", handleCilInfo, false),
   add("calloc", handleCalloc, true),
   add("free", handleFree, false),
   add("klee_assume", handleAssume, false),
@@ -209,6 +208,7 @@ void SpecialFunctionHandler::bind() {
       handlers[f] = std::make_pair(hi.handler, hi.hasReturnValue);
   }
 }
+
 
 
 bool SpecialFunctionHandler::handle(ExecutionState &state,
@@ -776,50 +776,4 @@ void SpecialFunctionHandler::handleDivRemOverflow(ExecutionState &state,
   executor.terminateStateOnError(state,
                                  "overflow on division or remainder",
                                  "overflow.err");
-}
-
-//muchang
-void SpecialFunctionHandler::handleCilInfo(ExecutionState &state,
-					                                 KInstruction *target,
-					                                 std::vector<ref<Expr> > &arguments) {
-  std::string point_kind = readStringAtAddress(state, arguments[0]);
-	std::string var_name = readStringAtAddress(state, arguments[1]);
-	std::string var_id = readStringAtAddress(state, arguments[2]);
-	std::string var_line = readStringAtAddress(state, arguments[3]);
-	std::string file_name = readStringAtAddress(state, arguments[4]);
-	std::string func_name = readStringAtAddress(state, arguments[5]);
-	std::string func_id = readStringAtAddress(state, arguments[6]);
-	std::string stmt_id = readStringAtAddress(state, arguments[7]);
-
-	if(point_kind == "0") {
-		Definition def;
-		def.var_name = var_name;
-		def.var_id = var_id;
-		def.var_line = var_line;
-		def.file_name = file_name;
-		def.func_name = func_name;
-		def.func_id  = func_id;
-		def.stmt_id = stmt_id;
-    def.ptreeNode = state.ptreeNode;
-		executor.cilInfoTable->update(def);
-	}
-	else {
-		Use use;
-    use.kind = point_kind;
-		use.var_name = var_name;
-		use.var_id = var_id;
-		use.var_line = var_line;
-		use.file_name = file_name;
-		use.func_name = func_name;
-		use.func_id  = func_id;
-		use.stmt_id = stmt_id;
-    use.ptreeNode = state.ptreeNode;
-		if (executor.cilInfoTable->update(use)) {
-      state.weight += 10;
-      if(executor.cilInfoTable->clearAllPair()) {
-        executor.states.clear();
-      }
-    }
-	}
-  executor.cilInfoTable->print();
 }

@@ -493,6 +493,11 @@ unsigned KModule::getConstantID(Constant *c, KInstruction* ki) {
   return id;
 }
 
+
+void KModule::setCilInfoTable(std::string cilInfoFile){
+	dfinfos = new CilInfoTable(cilInfoFile, module);
+}
+
 /***/
 
 KConstant::KConstant(llvm::Constant* _ct, unsigned _id, KInstruction* _ki) {

@@ -637,15 +637,28 @@ DataFlowSearcher::~DataFlowSearcher(){
 }
 
 ExecutionState &DataFlowSearcher::selectState() {
-  std::cerr << "states size" << states.size() << "\n";
-  std::vector<ExecutionState*>::iterator candidate;
-  std::vector<ExecutionState*>::iterator it;
-  for (it = states.begin(), candidate = states.begin() ; it != states.end(); ++it) {
-    if ((*candidate)->weight < (*it)->weight) {
-      candidate = it;
-    }
+  // std::cerr << "states size" << states.size() << "\n";
+  // std::vector<ExecutionState*>::iterator candidate;
+  // std::vector<ExecutionState*>::iterator it;
+  // for (it = states.begin(), candidate = states.begin() ; it != states.end(); ++it) {
+  //   if ((*candidate)->weight < (*it)->weight) {
+  //     candidate = it;
+  //   }
+  // }
+  // return **candidate;
+  ExecutionState* candidate = NULL;
+  for (std::vector<ExecutionState*>::iterator it = states.begin(),
+             ie = states.end(); it != ie; ++it) {
+      ExecutionState* es = *it;
+      //es->weight += executor.kmodule->dfinfos->evaluate(es->pc);
+      // errs() << evaluate <<"\n";
+      if(candidate == NULL || es->weight > candidate->weight)
+        candidate = es;
   }
-  return **candidate;
+  if(candidate != NULL)
+    return *candidate;
+  else  
+    return *states.back();
 }
 
 void DataFlowSearcher::update(ExecutionState *current,
