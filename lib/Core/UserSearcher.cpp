@@ -65,7 +65,7 @@ namespace {
            cl::desc("Enable support for klee_merge() (extra experimental)"));
 
   cl::opt<std::string>
-  UseDataFlow("-dataflow-testing-with",
+  UseDataFlow("dataflow-testing-with",
   	  	   cl::desc("Use data flow search with file contents cil def-use info"));
 
 }

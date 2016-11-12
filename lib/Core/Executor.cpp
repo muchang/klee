@@ -1423,7 +1423,7 @@ static inline const llvm::fltSemantics * fpWidthToSemantics(unsigned width) {
 
 //muchang
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
-  //kmodule->dfinfos->update(state,ki);
+  kmodule->dfinfos->update(state,ki);
   Instruction *i = ki->inst;
   //std::cerr << "id:" << ki->info->id << " assemblyLine: " << ki->info->assemblyLine << " Line:" << ki->info->line << "\n";
 
@@ -2621,6 +2621,8 @@ void Executor::run(ExecutionState &initialState) {
     }
     updateStates(&state);
   }
+
+  kmodule->dfinfos->print();
 
   delete searcher;
   searcher = 0;

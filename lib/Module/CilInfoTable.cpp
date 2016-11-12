@@ -12,7 +12,6 @@ std::vector<std::string> split(const std::string &s, char delim) {
     std::stringstream ss(s);
 		std::string item;
     while (std::getline(ss, item, delim)) {
-				std::cerr << item << std::endl;
         elems.push_back(item);
     }
     return elems;
@@ -69,7 +68,12 @@ bool DefUsePair::read (std::ifstream& fin){
 //Print Functions
 //**************************************************************************************************
 void Point::print() {
-	std::cerr << var_name << " " << var_id << " " << var_line << " " << file_name << " " << func_name << " " << func_id << " " << stmt_id << "\n" ;
+	std::cerr << var_name << " " << var_id << " " << var_line << " " << file_name << " " << func_name << " " << func_id << " " << stmt_id << " " ;
+	std::vector<Cutpoint>::iterator it;
+	for (it = cutpoints.begin() ; it != cutpoints.end(); ++it){
+		it->print();
+	}
+	std::cerr << "\n";
 }
 
 void Definition::print() {
@@ -83,17 +87,24 @@ void Use::print() {
 }
 
 void Cutpoint::print() {
-	std::cerr << "func_id:" << func_id << "\n";
-	std::cerr << "stmt_id:" << stmt_id << "\n";
-	std::cerr << "var_line:" << var_line << "\n";
+	std::cerr << "\nCutpoints: func_id:" << func_id << " " << "stmt_id:" << stmt_id << " "<< "var_line:" << var_line ;
 }
 
 void DefUsePair::print() {
-	std::cerr << "dua_id: " << dua_id << "\n";
+	std::cerr << "\ndua_id: " << dua_id << "\n";
 	std::cerr << "type: " << type << "\n";
 	def.print();
 	use.print();
-	std::cerr << "\n\n";
+
+	std::cerr << "status: ";
+	switch(status) {
+		case UnReach: std::cerr << "UnReach\n";break;
+		case ReachDef: std::cerr << "ReachDef\n";break;
+		case Covered: std::cerr << "Covered\n";break;
+		default: std::cerr << "UnKnow\n";break;
+	}
+	 
+	std::cerr << "\n";
 }
 
 void CilInfoTable::print () {
