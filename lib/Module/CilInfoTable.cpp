@@ -1,4 +1,5 @@
 #include "klee/Internal/Module/CilInfoTable.h"
+#include "llvm/Support/raw_ostream.h"
 #include <fstream>
 
 using namespace klee;
@@ -185,7 +186,7 @@ void DefUsePair::update(ExecutionState &state, KInstruction *kinstruction) {
 			use.inst = kinstruction->inst;
 			status = Covered;
 		}
-		else if(type == PTuse && kinstruction->inst->getOpcode() == llvm::Instruction::Br){
+		else if(type == PTuse && use.equals(kinstruction) && kinstruction->inst->getOpcode() == llvm::Instruction::Br){
             llvm::User::op_iterator opi = kinstruction->inst->op_begin();
 			if(llvm::BasicBlock *Bb = dyn_cast<llvm::BasicBlock>(*opi)) {
                 llvm::BasicBlock::iterator inst = Bb->begin();
@@ -193,8 +194,9 @@ void DefUsePair::update(ExecutionState &state, KInstruction *kinstruction) {
 				type = Puse;
             }
         }
-		else if(type == PFuse && kinstruction->inst->getOpcode() == llvm::Instruction::Br){
+		else if(type == PFuse && use.equals(kinstruction) && kinstruction->inst->getOpcode() == llvm::Instruction::Br){
             llvm::User::op_iterator opi = kinstruction->inst->op_end();
+			opi--;
 			if(llvm::BasicBlock *Bb = dyn_cast<llvm::BasicBlock>(*opi)) {
                 llvm::BasicBlock::iterator inst = Bb->begin();
 				use.inst = inst;
@@ -238,7 +240,7 @@ bool Definition::withSameVariableAs (const Definition& _def) {
 
 int Cutpoint::evaluate(const KInstruction *kinstruction) {
     if(equals(kinstruction))
-        return 10;
+        return 1;
     else
         return 0;
 }
@@ -247,7 +249,7 @@ int Cutpoint::evaluate(const KInstruction *kinstruction) {
 int klee::Use::evaluate(const KInstruction *kinstruction) {
     int value = 0;
     if(equals(kinstruction))
-        value += 100;
+        value += 10;
     // if the type of use is p-use 
     // then we print the first Instruction of branchs 
     // if(type == Puse){
@@ -269,7 +271,7 @@ int klee::Use::evaluate(const KInstruction *kinstruction) {
 int Definition::evaluate(const KInstruction *kinstruction) {
     int value = 0;
     if(equals(kinstruction))
-        value += 50;
+        value += 5;
     
     std::vector<Cutpoint>::iterator cp;
     for(cp = cutpoints.begin(); cp != cutpoints.end(); ++cp) {
@@ -291,26 +293,27 @@ int DefUsePair::evaluate (const KInstruction *kinstruction) {
     return value;
 }
 
-int CilInfoTable::evaluate (const ExecutionState &state, const KInstruction *kinstruction) {
+int CilInfoTable::evaluate (const ExecutionState *es) {
     for(std::vector<DefUsePair>::iterator it = defUseList.begin(); it != defUseList.end(); ++it) {
-        if (it->def.equals(kinstruction) && 
+        if (it->def.equals(es->pc) && 
 			it->def.withSameVariableAs(target->def) &&
-			state.ptreeNode->isPosterityOf(target->def.ptreeNode)) {
+			es->ptreeNode->isPosterityOf(target->def.ptreeNode)) {
 			//Is redefine
 			return -1;
 		}
     }
-    return target->evaluate(kinstruction);
+    return target->evaluate(es->pc);
 }
 //**************************************************************************************************
 
 
 
-bool CilInfoTable::stepTarget () {
-    target++;
-    if(target == defUseList.end())
-        return false;
-    else {
-		return true;
-    }
+bool CilInfoTable::setTarget(unsigned int dupairID) {
+	for(target = defUseList.begin();target != defUseList.end();target++) {
+		if (std::strtoul (target->dua_id.c_str(), NULL, 0) == dupairID) {
+			return true;
+		}
+	}
+	target = defUseList.begin();
+    return false;
 }

@@ -68,6 +68,10 @@ namespace {
   UseDataFlow("dataflow-testing-with",
   	  	   cl::desc("Use data flow search with file contents cil def-use info"));
 
+  cl::opt<unsigned>
+  DUPairID("def-use-pair-id",
+           cl::desc("The id number of def-use pair."),
+           cl::init(1));
 }
 
 
@@ -138,7 +142,7 @@ Searcher *klee::constructUserSearcher(Executor &executor) {
   if(UseDataFlow != ""){
   	std::cerr << "Work with data-flow Searcher!";
   	searcher = new DataFlowSearcher(executor);
-  	executor.setCilInfoTable(UseDataFlow);
+  	executor.setCilInfoTable(UseDataFlow, DUPairID);
   }
 
   llvm::raw_ostream &os = executor.getHandler().getInfoStream();

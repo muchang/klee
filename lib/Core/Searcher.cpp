@@ -555,7 +555,7 @@ IterativeDeepeningTimeSearcher::IterativeDeepeningTimeSearcher(Searcher *_baseSe
     time(1.) {
 }
 
-IterativeDeepeningTimeSearcher::~IterativeDeepeningTimeSearcher() {
+IterativeDeepeningTimeSearcher::~IterativeDeepeningTimeSearcher() { 
   delete baseSearcher;
 }
 
@@ -651,8 +651,8 @@ ExecutionState &DataFlowSearcher::selectState() {
   for (std::vector<ExecutionState*>::iterator it = states.begin(),
              ie = states.end(); it != ie; ++it) {
       ExecutionState* es = *it;
-      //es->weight += executor.kmodule->dfinfos->evaluate(es->pc);
-      // errs() << evaluate <<"\n";
+      es->weight += executor.kmodule->dfinfos->evaluate(es);
+      errs() << "evaluate: " <<  es->weight <<"\n";
       if(candidate == NULL || es->weight > candidate->weight)
         candidate = es;
   }

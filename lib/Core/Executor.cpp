@@ -3587,6 +3587,6 @@ Interpreter *Interpreter::create(const InterpreterOptions &opts,
   return new Executor(opts, ih);
 }
 
-void Executor::setCilInfoTable(std::string cilInfoFile){
-	kmodule->setCilInfoTable(cilInfoFile);
+void Executor::setCilInfoTable(std::string cilInfoFile, unsigned int dupairID){
+	kmodule->setCilInfoTable(cilInfoFile, dupairID);
 }

@@ -475,7 +475,7 @@ public:
 
   Expr::Width getWidthForLLVMType(LLVM_TYPE_Q llvm::Type *type) const;
 
-  void setCilInfoTable(std::string cilInfoFile);
+  void setCilInfoTable(std::string cilInfoFile, unsigned int dupairID);
 };
 
 } // End klee namespace

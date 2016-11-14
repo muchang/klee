@@ -102,9 +102,9 @@ namespace klee {
     /*Print the content of the CilInfoTable*/
     void print();
     /*Update defUsePair in CilInfoTable when meet klee_cil_info function*/
-    int evaluate(const ExecutionState &, const KInstruction *);
+    int evaluate(const ExecutionState *);
     void update(ExecutionState &state, KInstruction *kinstruction);
-    bool stepTarget();
+    bool setTarget(unsigned int dupairID);
   };
 
 }
