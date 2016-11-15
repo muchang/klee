@@ -37,22 +37,26 @@ namespace klee {
     Covered
   };
 
-  struct Point {
-	  std::string var_name;
-	  std::string var_id;
-	  std::string var_line;
-	  std::string file_name;
-	  std::string func_name;
-	  std::string func_id;
+  struct Node {
+    std::string func_id;
 	  std::string stmt_id;
-    std::vector<Cutpoint> cutpoints;
+    std::string var_line;
 
     PTreeNode* ptreeNode;
     llvm::Instruction *inst;
 
+    bool equals (const KInstruction *kinstruction);
+  };
+
+  struct Point: public Node {
+	  std::string var_name;
+	  std::string var_id;
+	  std::string file_name;
+	  std::string func_name;
+    std::vector<Cutpoint> cutpoints;
+
 	  void print();
     void read(std::ifstream& fin);
-    bool equals (const KInstruction *kinstruction);
   };
 
   struct Definition : public Point {
@@ -66,7 +70,7 @@ namespace klee {
     int evaluate(const KInstruction *);
   };
 
-  struct Cutpoint : public Point {
+  struct Cutpoint : public Node{
     std::string kind;
 
     Cutpoint(std::string);

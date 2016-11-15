@@ -163,7 +163,7 @@ CilInfoTable::CilInfoTable (std::string cilInfoFile, llvm::Module* module) {
 
 //Updata Functions
 //**************************************************************************************************
-bool Point::equals (const KInstruction *kinstruction) {
+bool Node::equals (const KInstruction *kinstruction) {
 	const char *line = var_line.c_str();
 	if (std::strtoul (line, NULL, 0) == kinstruction->info->line)
 		return true;

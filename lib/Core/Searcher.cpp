@@ -652,7 +652,7 @@ ExecutionState &DataFlowSearcher::selectState() {
              ie = states.end(); it != ie; ++it) {
       ExecutionState* es = *it;
       es->weight += executor.kmodule->dfinfos->evaluate(es);
-      errs() << "evaluate: " <<  es->weight <<"\n";
+      //errs() << "evaluate: " <<  es->weight <<"\n";
       if(candidate == NULL || es->weight > candidate->weight)
         candidate = es;
   }
