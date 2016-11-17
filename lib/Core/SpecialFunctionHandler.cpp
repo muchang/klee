@@ -783,5 +783,5 @@ void SpecialFunctionHandler::handleDivRemOverflow(ExecutionState &state,
 void SpecialFunctionHandler::handleStmtMonitor(ExecutionState &state,
                                                KInstruction *target,
                                                std::vector<ref<Expr> > &arguments) {
-  return;
+  executor.kmodule->dfinfos->update(state, target);
 }

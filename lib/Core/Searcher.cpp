@@ -632,7 +632,7 @@ DataFlowSearcher::DataFlowSearcher(Executor &_executor)
 }
 
 DataFlowSearcher::~DataFlowSearcher(){
-
+    executor.kmodule->dfinfos->print();
 }
 
 ExecutionState &DataFlowSearcher::selectState() {
