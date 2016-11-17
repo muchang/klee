@@ -157,6 +157,8 @@ extern "C" {
 
   /* Merge current states together if possible */
   void klee_merge();
+
+  void df_stmt_monitor(int, int, int, int);
 #ifdef __cplusplus
 }
 #endif
