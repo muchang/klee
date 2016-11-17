@@ -220,8 +220,6 @@ double WeightedRandomSearcher::getWeight(ExecutionState *es) {
   case MinDistToUncovered: {
     uint64_t md2u = computeMinDistToUncovered(es->pc,
                                               es->stack.back().minDistToUncoveredOnReturn);
-    if(md2u != 1)
-      errs() << "md:" << md2u << "\n";                         
     double invMD2U = 1. / (md2u ? md2u : 10000);
     if (type==CoveringNew) {
       double invCovNew = 0.;
