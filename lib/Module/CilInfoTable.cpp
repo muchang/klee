@@ -9,9 +9,9 @@ class PTreeNode;
 //**************************************************************************************************
 /* A tool function split the string by the delim. */
 std::vector<std::string> split(const std::string &s, char delim) {
-	  std::vector<std::string> elems;
+	std::vector<std::string> elems;
     std::stringstream ss(s);
-		std::string item;
+	std::string item;
     while (std::getline(ss, item, delim)) {
         elems.push_back(item);
     }
@@ -130,7 +130,7 @@ Cutpoint::Cutpoint (std::string sequence) {
 	assert( sequenceList.size() == 4 );
 	func_id = sequenceList[0];
 	stmt_id = sequenceList[1];
-	kind = sequenceList[2];
+	branch_choice = sequenceList[2];
 	var_line = sequenceList[3];
 }
 
@@ -213,7 +213,7 @@ bool Node::equals (int func_id, int stmt_id, int stmt_line) {
 }
 
 void DefUsePair::update(ExecutionState &state, KInstruction *kinstruction) {
-    if(def.equals(kinstruction)){
+    if(def.equals(kinstruction) && status != Covered){
         def.ptreeNode = state.ptreeNode;
 		def.inst = kinstruction->inst;
 		status = ReachDef;

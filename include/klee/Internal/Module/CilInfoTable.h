@@ -27,7 +27,6 @@
 
 
 namespace klee {
-  struct Cutpoint;
 
   enum UseType {
     Cuse,     //C-use
@@ -54,6 +53,14 @@ namespace klee {
     bool equals (int func_id, int stmt_id, int stmt_line);
   };
 
+  struct Cutpoint : public Node{
+    std::string branch_choice;
+
+    Cutpoint(std::string);
+    void print();
+    int evaluate(const KInstruction *);
+  };
+
   struct Point: public Node {
 	  std::string var_name;
 	  std::string var_id;
@@ -73,14 +80,6 @@ namespace klee {
 
   struct Use : public Point {
 	  void print();
-    int evaluate(const KInstruction *);
-  };
-
-  struct Cutpoint : public Node{
-    std::string kind;
-
-    Cutpoint(std::string);
-    void print();
     int evaluate(const KInstruction *);
   };
 
