@@ -49,6 +49,7 @@ namespace klee {
     PTreeNode* ptreeNode;
     llvm::Instruction *inst;
 
+    Node();
     bool equals (const KInstruction *kinstruction);
     bool equals (int func_id, int stmt_id, int stmt_line);
   };
@@ -114,7 +115,7 @@ namespace klee {
     int evaluate(const ExecutionState *);
     void update(ExecutionState &state, KInstruction *kinstruction);
     bool setTarget(unsigned int dupairID);
-    bool setNodeInstruction(int func_id, int stmt_id, int stmt_line, llvm::Instruction *inst);
+    bool setNodeInstruction(int func_id, int stmt_id, int branch_choice, int stmt_line, llvm::Instruction *inst);
   };
 
 }

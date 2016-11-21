@@ -1,6 +1,7 @@
 #include "klee/Internal/Module/CilInfoTable.h"
 #include "llvm/Support/raw_ostream.h"
 #include <fstream>
+#include <sstream>
 
 using namespace klee;
 
@@ -16,6 +17,11 @@ std::vector<std::string> split(const std::string &s, char delim) {
         elems.push_back(item);
     }
     return elems;
+}
+std::string int2str (int i) {
+	std::stringstream ss;
+	ss << i;
+	return ss.str();
 }
 
 void Point::read (std::ifstream& fin) {
@@ -70,6 +76,7 @@ bool DefUsePair::read (std::ifstream& fin){
 //**************************************************************************************************
 void Point::print() {
 	std::cerr << var_name << " " << var_id << " " << var_line << " " << file_name << " " << func_name << " " << func_id << " " << stmt_id << " " ;
+	if(inst) llvm::errs() << *inst;
 	std::vector<Cutpoint>::iterator it;
 	for (it = cutpoints.begin() ; it != cutpoints.end(); ++it){
 		it->print();
@@ -88,7 +95,8 @@ void Use::print() {
 }
 
 void Cutpoint::print() {
-	std::cerr << "\nCutpoints: func_id:" << func_id << " " << "stmt_id:" << stmt_id << " "<< "var_line:" << var_line ;
+	std::cerr << "\nCutpoints: func_id:" << func_id << " " << "stmt_id:" << stmt_id << " "<< "var_line:" << var_line;
+	if(inst) llvm::errs() << " inst: " << *inst;
 }
 
 void DefUsePair::print() {
@@ -123,6 +131,9 @@ void CilInfoTable::print () {
 
 //Initialize Functions
 //**************************************************************************************************
+Node::Node() {
+	this->inst = 0;
+}
 
 Cutpoint::Cutpoint (std::string sequence) {
 	std::vector<std::string> sequenceList = split(sequence,':');
@@ -164,25 +175,42 @@ CilInfoTable::CilInfoTable (std::string cilInfoFile, llvm::Module* module) {
 						assert(4 == cIn->getNumArgOperands());
 						int func_id = cast<llvm::ConstantInt>(cIn->getArgOperand(0))->getSExtValue(),
 						    stmt_id = cast<llvm::ConstantInt>(cIn->getArgOperand(1))->getSExtValue(),
-							// branch_choice = cast<llvm::ConstantInt>(cIn->getArgOperand(2))->getSExtValue(),
+							branch_choice = cast<llvm::ConstantInt>(cIn->getArgOperand(2))->getSExtValue(),
 							stmt_line = cast<llvm::ConstantInt>(cIn->getArgOperand(3))->getSExtValue();
-						setNodeInstruction(func_id, stmt_id, stmt_line, cIn);
+						setNodeInstruction(func_id, stmt_id, branch_choice, stmt_line, cIn);
 					}
 				}
 			}
 		}
 	}
 }
-bool CilInfoTable::setNodeInstruction(int func_id, int stmt_id, int stmt_line, llvm::Instruction *inst) {
-	// todo: maybe could add index for nodes
+bool CilInfoTable::setNodeInstruction(int func_id, int stmt_id, int branch_choice, int stmt_line, llvm::Instruction *inst) {
+	// todo: maybe could add index for nodes to speed up
+	// std::cout << "set inst on func id: " << func_id << " stmt id: " << stmt_id << " stmt line: " << stmt_line << " branch choice: " << branch_choice << " inst: " << inst << std::endl;
 	for (std::vector<klee::DefUsePair>::iterator dfIt = defUseList.begin(); dfIt != defUseList.end(); ++dfIt) {
-		if(dfIt->def.equals(func_id, stmt_id, stmt_line)) dfIt->def.inst = inst;
-		if(dfIt->use.equals(func_id, stmt_id, stmt_line)) dfIt->use.inst = inst;
+		if(
+			(-1 == branch_choice && klee::Cuse == dfIt->type) ||
+			(1 == branch_choice && klee::PTuse == dfIt->type) ||
+			(0 == branch_choice && klee::PFuse == dfIt->type) // see mail @ Fri 11/4/2016 2:18 PM
+		) {
+			if(dfIt->def.equals(func_id, stmt_id, stmt_line)) dfIt->def.inst = inst;
+			if(dfIt->use.equals(func_id, stmt_id, stmt_line)) dfIt->use.inst = inst;
+		}
 		for(std::vector<Cutpoint>::iterator dcIt = dfIt->def.cutpoints.begin(); dcIt != dfIt->def.cutpoints.end(); ++dcIt) {
-			if(dcIt->equals(func_id, stmt_id, stmt_line)) dcIt->inst = inst;
+			if(
+				("0" == dcIt->branch_choice && 1 == branch_choice) ||
+				("1" == dcIt->branch_choice && 0 == branch_choice) // see mail @ Mon 11/21/2016 7:44 PM
+			) {
+				if(dcIt->equals(func_id, stmt_id, stmt_line)) dcIt->inst = inst;
+			}
 		}
 		for(std::vector<Cutpoint>::iterator ucIt = dfIt->use.cutpoints.begin(); ucIt != dfIt->use.cutpoints.end(); ++ucIt) {
-			if(ucIt->equals(func_id, stmt_id, stmt_line)) ucIt->inst = inst;
+			if(
+				("0" == ucIt->branch_choice && 1 == branch_choice) ||
+				("1" == ucIt->branch_choice && 0 == branch_choice)
+			) {
+				if(ucIt->equals(func_id, stmt_id, stmt_line)) ucIt->inst = inst;
+			}	
 		}
 	}
 	return true;
@@ -204,12 +232,7 @@ bool Node::equals (const KInstruction *kinstruction) {
 		return false;
 }
 bool Node::equals (int func_id, int stmt_id, int stmt_line) {
-	std::string s_func_id, s_stmt_id, s_stmt_line;
-	// simple cast from int to std::string
-	s_func_id += func_id;
-	s_stmt_id += stmt_id;
-	s_stmt_line += stmt_line;
-	return this->func_id == s_func_id && this->stmt_id == s_stmt_id && this->var_line == s_stmt_line;
+	return int2str(func_id) == this->func_id && int2str(stmt_id) == this->stmt_id && int2str(stmt_line) == this->var_line;
 }
 
 void DefUsePair::update(ExecutionState &state, KInstruction *kinstruction) {
