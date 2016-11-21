@@ -14,7 +14,12 @@
 #include "klee/ExecutionState.h"
 
 #include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Module.h"
+
+#include "llvm/Support/CallSite.h"
 
 #include <string>
 #include <vector>
@@ -46,6 +51,7 @@ namespace klee {
     llvm::Instruction *inst;
 
     bool equals (const KInstruction *kinstruction);
+    bool equals (int func_id, int stmt_id, int stmt_line);
   };
 
   struct Point: public Node {
@@ -109,6 +115,7 @@ namespace klee {
     int evaluate(const ExecutionState *);
     void update(ExecutionState &state, KInstruction *kinstruction);
     bool setTarget(unsigned int dupairID);
+    bool setNodeInstruction(int func_id, int stmt_id, int stmt_line, llvm::Instruction *inst);
   };
 
 }

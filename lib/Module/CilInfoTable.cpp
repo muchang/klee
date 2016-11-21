@@ -153,6 +153,39 @@ CilInfoTable::CilInfoTable (std::string cilInfoFile, llvm::Module* module) {
 	}
 	fin.close();
 	target = defUseList.begin();
+
+	// init def-use map ith module
+	for (llvm::Module::iterator fnIt = module->begin(); fnIt != module->end(); ++fnIt) {
+		for (llvm::Function::iterator bbIt = fnIt->begin(); bbIt != fnIt->end(); ++bbIt) {
+			for (llvm::BasicBlock::iterator it = bbIt->begin(); it != bbIt->end(); ++it) {
+				if (isa<llvm::CallInst>(it)) {
+					llvm::CallInst* cIn = cast<llvm::CallInst>(it);
+					if ("df_stmt_monitor" == cIn->getCalledFunction()->getName().str()) {
+						assert(4 == cIn->getNumArgOperands());
+						int func_id = cast<llvm::ConstantInt>(cIn->getArgOperand(0))->getSExtValue(),
+						    stmt_id = cast<llvm::ConstantInt>(cIn->getArgOperand(1))->getSExtValue(),
+							// branch_choice = cast<llvm::ConstantInt>(cIn->getArgOperand(2))->getSExtValue(),
+							stmt_line = cast<llvm::ConstantInt>(cIn->getArgOperand(3))->getSExtValue();
+						setNodeInstruction(func_id, stmt_id, stmt_line, cIn);
+					}
+				}
+			}
+		}
+	}
+}
+bool CilInfoTable::setNodeInstruction(int func_id, int stmt_id, int stmt_line, llvm::Instruction *inst) {
+	// todo: maybe could add index for nodes
+	for (std::vector<klee::DefUsePair>::iterator dfIt = defUseList.begin(); dfIt != defUseList.end(); ++dfIt) {
+		if(dfIt->def.equals(func_id, stmt_id, stmt_line)) dfIt->def.inst = inst;
+		if(dfIt->use.equals(func_id, stmt_id, stmt_line)) dfIt->use.inst = inst;
+		for(std::vector<Cutpoint>::iterator dcIt = dfIt->def.cutpoints.begin(); dcIt != dfIt->def.cutpoints.end(); ++dcIt) {
+			if(dcIt->equals(func_id, stmt_id, stmt_line)) dcIt->inst = inst;
+		}
+		for(std::vector<Cutpoint>::iterator ucIt = dfIt->use.cutpoints.begin(); ucIt != dfIt->use.cutpoints.end(); ++ucIt) {
+			if(ucIt->equals(func_id, stmt_id, stmt_line)) ucIt->inst = inst;
+		}
+	}
+	return true;
 }
 //**************************************************************************************************
 
@@ -169,6 +202,14 @@ bool Node::equals (const KInstruction *kinstruction) {
 		return true;
 	else
 		return false;
+}
+bool Node::equals (int func_id, int stmt_id, int stmt_line) {
+	std::string s_func_id, s_stmt_id, s_stmt_line;
+	// simple cast from int to std::string
+	s_func_id += func_id;
+	s_stmt_id += stmt_id;
+	s_stmt_line += stmt_line;
+	return this->func_id == s_func_id && this->stmt_id == s_stmt_id && this->var_line == s_stmt_line;
 }
 
 void DefUsePair::update(ExecutionState &state, KInstruction *kinstruction) {
