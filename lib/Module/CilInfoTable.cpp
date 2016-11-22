@@ -188,12 +188,12 @@ bool CilInfoTable::setNodeInstruction(int func_id, int stmt_id, int branch_choic
 	// todo: maybe could add index for nodes to speed up
 	// std::cout << "set inst on func id: " << func_id << " stmt id: " << stmt_id << " stmt line: " << stmt_line << " branch choice: " << branch_choice << " inst: " << inst << std::endl;
 	for (std::vector<klee::DefUsePair>::iterator dfIt = defUseList.begin(); dfIt != defUseList.end(); ++dfIt) {
+		if(dfIt->def.equals(func_id, stmt_id, stmt_line)) dfIt->def.inst = inst;
 		if(
 			(-1 == branch_choice && klee::Cuse == dfIt->type) ||
 			(1 == branch_choice && klee::PTuse == dfIt->type) ||
 			(0 == branch_choice && klee::PFuse == dfIt->type) // see mail @ Fri 11/4/2016 2:18 PM
 		) {
-			if(dfIt->def.equals(func_id, stmt_id, stmt_line)) dfIt->def.inst = inst;
 			if(dfIt->use.equals(func_id, stmt_id, stmt_line)) dfIt->use.inst = inst;
 		}
 		for(std::vector<Cutpoint>::iterator dcIt = dfIt->def.cutpoints.begin(); dcIt != dfIt->def.cutpoints.end(); ++dcIt) {
@@ -226,13 +226,10 @@ bool CilInfoTable::setNodeInstruction(int func_id, int stmt_id, int branch_choic
 //**************************************************************************************************
 bool Node::equals (const KInstruction *kinstruction) {
 	const char *line = var_line.c_str();
-	if (std::strtoul (line, NULL, 0) == kinstruction->info->line)
-		return true;
-	else
-		return false;
+	return std::strtoul (line, NULL, 0) == kinstruction->info->line;
 }
 bool Node::equals (int func_id, int stmt_id, int stmt_line) {
-	return int2str(func_id) == this->func_id && int2str(stmt_id) == this->stmt_id && int2str(stmt_line) == this->var_line;
+	return int2str(func_id) == this->func_id && int2str(stmt_id) == this->stmt_id;
 }
 
 void DefUsePair::update(ExecutionState &state, KInstruction *kinstruction) {
