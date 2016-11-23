@@ -225,8 +225,7 @@ bool CilInfoTable::setNodeInstruction(int func_id, int stmt_id, int branch_choic
 //Updata Functions
 //**************************************************************************************************
 bool Node::equals (const KInstruction *kinstruction) {
-	const char *line = var_line.c_str();
-	return std::strtoul (line, NULL, 0) == kinstruction->info->line;
+	return inst == kinstruction->inst;
 }
 bool Node::equals (int func_id, int stmt_id, int stmt_line) {
 	return int2str(func_id) == this->func_id && int2str(stmt_id) == this->stmt_id;
@@ -241,33 +240,9 @@ void DefUsePair::update(ExecutionState &state, KInstruction *kinstruction) {
         
 	// if the type of use is p-use 
     // then we print the first Instruction of branchs
-	if(status == ReachDef && state.ptreeNode->isPosterityOf(def.ptreeNode)){
-		if(type == Cuse && use.equals(kinstruction)){
-			use.ptreeNode = state.ptreeNode;
-			use.inst = kinstruction->inst;
-			status = Covered;
-		}
-		else if(type == PTuse && use.equals(kinstruction) && kinstruction->inst->getOpcode() == llvm::Instruction::Br){
-            llvm::User::op_iterator opi = kinstruction->inst->op_begin();
-			if(llvm::BasicBlock *Bb = dyn_cast<llvm::BasicBlock>(*opi)) {
-                llvm::BasicBlock::iterator inst = Bb->begin();
-                use.inst = inst;
-				type = Puse;
-            }
-        }
-		else if(type == PFuse && use.equals(kinstruction) && kinstruction->inst->getOpcode() == llvm::Instruction::Br){
-            llvm::User::op_iterator opi = kinstruction->inst->op_end();
-			opi--;
-			if(llvm::BasicBlock *Bb = dyn_cast<llvm::BasicBlock>(*opi)) {
-                llvm::BasicBlock::iterator inst = Bb->begin();
-				use.inst = inst;
-				type = Puse;
-            }
-        }
-		else if(type == Puse && use.inst == kinstruction->inst) {
-			use.ptreeNode = state.ptreeNode;
-			status = Covered;
-		}
+	if(status == ReachDef && state.ptreeNode->isPosterityOf(def.ptreeNode) && use.equals(kinstruction)){
+		use.ptreeNode = state.ptreeNode;
+		status = Covered;
 	} 
 }
 
