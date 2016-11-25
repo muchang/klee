@@ -783,5 +783,6 @@ void SpecialFunctionHandler::handleDivRemOverflow(ExecutionState &state,
 void SpecialFunctionHandler::handleStmtMonitor(ExecutionState &state,
                                                KInstruction *target,
                                                std::vector<ref<Expr> > &arguments) {
-  executor.kmodule->dfinfos->update(state, target);
+  if(!executor.kmodule->dfinfos->update(state, target)) executor.removedStates.insert(&state);
+  if(executor.kmodule->dfinfos->coveredTarget()) executor.terminateStateEarly(state,"Cover def-use pair");
 }

@@ -51,6 +51,7 @@ namespace klee {
 
     Node();
     bool equals (const KInstruction *kinstruction);
+    bool blockEquals(const KInstruction *kinstruction);
     bool equals (int func_id, int stmt_id, int stmt_line);
   };
 
@@ -113,8 +114,10 @@ namespace klee {
     void print();
     /*Update defUsePair in CilInfoTable when meet klee_cil_info function*/
     int evaluate(const ExecutionState *);
-    void update(ExecutionState &state, KInstruction *kinstruction);
+    bool update(ExecutionState &state, KInstruction *kinstruction);
     bool setTarget(unsigned int dupairID);
+    bool coveredTarget();
+    bool isTarget(const llvm::Instruction* inst); 
     bool setNodeInstruction(int func_id, int stmt_id, int branch_choice, int stmt_line, llvm::Instruction *inst);
   };
 

@@ -58,7 +58,6 @@ bool DefUsePair::read (std::ifstream& fin){
 		std::string tmp_status;
 		fin >> tmp_status;
 		status = UnReach;
-		print();
 		return true;
 
 	}
@@ -237,18 +236,26 @@ void DefUsePair::update(ExecutionState &state, KInstruction *kinstruction) {
 		def.inst = kinstruction->inst;
 		status = ReachDef;
     }
-        
-	// if the type of use is p-use 
-    // then we print the first Instruction of branchs
-	if(status == ReachDef && state.ptreeNode->isPosterityOf(def.ptreeNode) && use.equals(kinstruction)){
+	if( status == ReachDef && state.ptreeNode->isPosterityOf(def.ptreeNode) && use.equals(kinstruction)){
 		use.ptreeNode = state.ptreeNode;
 		status = Covered;
 	} 
 }
 
-void CilInfoTable::update(ExecutionState &state, KInstruction *kinstruction) {
+bool CilInfoTable::update(ExecutionState &state, KInstruction *kinstruction) {
     for(std::vector<DefUsePair>::iterator it = defUseList.begin(); it != defUseList.end(); ++it)
         it->update(state, kinstruction);
+
+	for(std::vector<DefUsePair>::iterator it = defUseList.begin(); it != defUseList.end(); ++it) {
+        if (it != target &&
+		    target->status == ReachDef &&
+			it->def.equals(kinstruction) && 
+			it->def.withSameVariableAs(target->def) &&
+			state.ptreeNode->isPosterityOf(target->def.ptreeNode)) {
+			return false;
+		}
+    }
+	return true;
 }
 //**************************************************************************************************
 
@@ -274,8 +281,12 @@ bool Definition::withSameVariableAs (const Definition& _def) {
 		return false;
 }
 
+bool Node::blockEquals(const KInstruction *kinstruction) {
+	return inst->getParent() == kinstruction->inst->getParent();
+}
+
 int Cutpoint::evaluate(const KInstruction *kinstruction) {
-    if(equals(kinstruction))
+    if(blockEquals(kinstruction))
         return 1;
     else
         return 0;
@@ -284,29 +295,18 @@ int Cutpoint::evaluate(const KInstruction *kinstruction) {
 
 int klee::Use::evaluate(const KInstruction *kinstruction) {
     int value = 0;
-    if(equals(kinstruction))
+    if(blockEquals(kinstruction))
         value += 10;
-    // if the type of use is p-use 
-    // then we print the first Instruction of branchs 
-    // if(type == Puse){
-    //     std::vector<Branch>::iterator br;
-    //     for(std::vector<Branch>::iterator br = branchs.begin(); br != branchs.end(); ++br) {
-    //         if(kinstruction->inst == inst)
-    //             value += 100;
-    //     }
-                
-    // }
     std::vector<Cutpoint>::iterator cp;
     for(cp = cutpoints.begin(); cp != cutpoints.end(); ++cp) {
         value += cp->evaluate(kinstruction);
     }
-
     return value;
 }
 
 int Definition::evaluate(const KInstruction *kinstruction) {
     int value = 0;
-    if(equals(kinstruction))
+    if(blockEquals(kinstruction))
         value += 5;
     
     std::vector<Cutpoint>::iterator cp;
@@ -318,26 +318,14 @@ int Definition::evaluate(const KInstruction *kinstruction) {
 
 int DefUsePair::evaluate (const KInstruction *kinstruction) {
 	int value = 0;
-    value = def.evaluate(kinstruction);
-
-    // print use by iterator
-    // std::vector<Use>::iterator use;
-    // for(use = uselist.begin(); use != uselist.end(); ++use) {
-    //     value += use->evaluate(kinstruction);
-    // }
-    value += use.evaluate(kinstruction);
+	if(status == UnReach)
+    	value = def.evaluate(kinstruction);
+	if(status == ReachDef)
+    	value += use.evaluate(kinstruction);
     return value;
 }
 
 int CilInfoTable::evaluate (const ExecutionState *es) {
-    for(std::vector<DefUsePair>::iterator it = defUseList.begin(); it != defUseList.end(); ++it) {
-        if (it->def.equals(es->pc) && 
-			it->def.withSameVariableAs(target->def) &&
-			es->ptreeNode->isPosterityOf(target->def.ptreeNode)) {
-			//Is redefine
-			return -1;
-		}
-    }
     return target->evaluate(es->pc);
 }
 //**************************************************************************************************
@@ -346,10 +334,29 @@ int CilInfoTable::evaluate (const ExecutionState *es) {
 
 bool CilInfoTable::setTarget(unsigned int dupairID) {
 	for(target = defUseList.begin();target != defUseList.end();target++) {
-		if (std::strtoul (target->dua_id.c_str(), NULL, 0) == dupairID) {
+		if (std::strtoul (target->dua_id.c_str(), NULL, 0) == dupairID) 
 			return true;
-		}
 	}
 	target = defUseList.begin();
     return false;
+}
+
+bool CilInfoTable::coveredTarget(){
+	return target->status == Covered;
+}
+
+bool CilInfoTable::isTarget(const llvm::Instruction* inst) {
+	if (target->status == UnReach) {
+		if (target->def.inst == inst) return true;
+		for(std::vector<Cutpoint>::iterator cp = target->def.cutpoints.begin(); cp != target->def.cutpoints.end(); ++cp) {
+        	if (cp->inst == inst) return true;
+    	}
+	}
+	else if (target->status == ReachDef) {
+		if (target->use.inst == inst) return true;
+		for(std::vector<Cutpoint>::iterator cp = target->use.cutpoints.begin(); cp != target->use.cutpoints.end(); ++cp) {
+			if (cp->inst == inst) return true;
+		}
+	}
+	return false;
 }

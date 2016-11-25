@@ -636,23 +636,36 @@ DataFlowSearcher::~DataFlowSearcher(){
 }
 
 ExecutionState &DataFlowSearcher::selectState() {
-  // std::cerr << "states size" << states.size() << "\n";
-  // std::vector<ExecutionState*>::iterator candidate;
-  // std::vector<ExecutionState*>::iterator it;
-  // for (it = states.begin(), candidate = states.begin() ; it != states.end(); ++it) {
-  //   if ((*candidate)->weight < (*it)->weight) {
-  //     candidate = it;
-  //   }
-  // }
-  // return **candidate;
   ExecutionState* candidate = NULL;
+  bool flag = false;
   for (std::vector<ExecutionState*>::iterator it = states.begin(),
              ie = states.end(); it != ie; ++it) {
       ExecutionState* es = *it;
       es->weight += executor.kmodule->dfinfos->evaluate(es);
       //errs() << "evaluate: " <<  es->weight <<"\n";
-      if(candidate == NULL || es->weight > candidate->weight)
+      if(candidate == NULL)
         candidate = es;
+      else if (es->weight > candidate->weight) {
+        candidate = es;
+        flag = true;
+      }
+      else if (es->weight < candidate->weight)
+        flag = true;
+  }
+  //use min-distance method if there no cutpoint to be selected
+  if(flag == false) {
+    int maxEval = 0;
+    executor.statsTracker->computeReachableDefUsePair();
+    for (std::vector<ExecutionState*>::iterator it = states.begin(),
+             ie = states.end(); it != ie; ++it) {
+      ExecutionState* es = *it;
+      int eval = computeMinDistToUncovered(es->pc,es->stack.back().minDistToUncoveredOnReturn);
+      //errs() << "evaluate: " <<  es->weight <<"\n";
+      if(candidate == NULL || eval > maxEval){
+        candidate = es;
+        maxEval = eval;
+      } 
+    }
   }
   if(candidate != NULL)
     return *candidate;

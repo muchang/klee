@@ -1424,7 +1424,6 @@ static inline const llvm::fltSemantics * fpWidthToSemantics(unsigned width) {
 //muchang
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   Instruction *i = ki->inst;
-  //std::cerr << "id:" << ki->info->id << " assemblyLine: " << ki->info->assemblyLine << " Line:" << ki->info->line << "\n";
 
   switch (i->getOpcode()) {
     // Control flow
@@ -2420,6 +2419,11 @@ void Executor::updateStates(ExecutionState *current) {
 
   states.insert(addedStates.begin(), addedStates.end());
   addedStates.clear();
+
+  //muchang
+  if(kmodule->dfinfos->coveredTarget()){
+    removedStates.insert(states.begin(), states.end());
+  }
 
   for (std::set<ExecutionState*>::iterator
          it = removedStates.begin(), ie = removedStates.end();
