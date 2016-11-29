@@ -267,6 +267,14 @@ namespace {
   checkLine("check-line",
             cl::init(0));
 
+  cl::opt<std::string>
+  UseDataFlow("dataflow-testing-with",
+  	  	   cl::desc("Use data flow search with file contents cil def-use info"));
+
+  cl::opt<unsigned>
+  DUPairID("def-use-pair-id",
+           cl::desc("The id number of def-use pair."),
+           cl::init(1));
 }
 
 
@@ -373,6 +381,11 @@ const Module *Executor::setModule(llvm::Module *module,
       new StatsTracker(*this,
                        interpreterHandler->getOutputFilename("assembly.ll"),
                        userSearcherRequiresMD2U());
+  }
+
+  //muchang
+  if(UseDataFlow != ""){
+  	kmodule->setCilInfoTable(UseDataFlow, DUPairID);
   }
 
   return module;
@@ -3422,7 +3435,6 @@ void Executor::runFunctionAsMain(Function *f,
   processTree = new PTree(state);
   state->ptreeNode = processTree->root;
   run(*state);
-  //this->cilInfoTable->print();
   delete processTree;
   processTree = 0;
 
@@ -3586,8 +3598,4 @@ Expr::Width Executor::getWidthForLLVMType(LLVM_TYPE_Q llvm::Type *type) const {
 Interpreter *Interpreter::create(const InterpreterOptions &opts,
                                  InterpreterHandler *ih) {
   return new Executor(opts, ih);
-}
-
-void Executor::setCilInfoTable(std::string cilInfoFile, unsigned int dupairID){
-	kmodule->setCilInfoTable(cilInfoFile, dupairID);
 }

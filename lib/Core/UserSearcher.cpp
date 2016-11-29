@@ -63,15 +63,16 @@ namespace {
   cl::opt<bool>
   UseBumpMerge("use-bump-merge", 
            cl::desc("Enable support for klee_merge() (extra experimental)"));
+  
+  cl::opt<bool>
+  UseCPGSSearcher("use-CPGSSearcher", 
+           cl::desc("Use Cutpoint Guided Search for Dataflow Testing."));
 
-  cl::opt<std::string>
-  UseDataFlow("dataflow-testing-with",
-  	  	   cl::desc("Use data flow search with file contents cil def-use info"));
+  cl::opt<bool>
+  UseSDGSSearcher("use-SDGSSearcher", 
+           cl::desc("Use Shortest Distance Guided Search for Dataflow Testing."));      
 
-  cl::opt<unsigned>
-  DUPairID("def-use-pair-id",
-           cl::desc("The id number of def-use pair."),
-           cl::init(1));
+
 }
 
 
@@ -139,10 +140,12 @@ Searcher *klee::constructUserSearcher(Executor &executor) {
     searcher = new IterativeDeepeningTimeSearcher(searcher);
   }
 
-  if(UseDataFlow != ""){
-  	std::cerr << "Work with data-flow Searcher!";
-  	searcher = new DataFlowSearcher(executor);
-  	executor.setCilInfoTable(UseDataFlow, DUPairID);
+  if (UseCPGSSearcher) {
+    searcher = new CPGSSearcher(executor);
+  }
+
+  if (UseSDGSSearcher) {
+    searcher = new SDGSSearcher(executor); 
   }
 
   llvm::raw_ostream &os = executor.getHandler().getInfoStream();

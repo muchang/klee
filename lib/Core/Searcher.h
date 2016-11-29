@@ -303,13 +303,14 @@ namespace klee {
     }
   };
 
-  class DataFlowSearcher : public Searcher {
+  //Cut Point Guided Search
+  class CPGSSearcher : public Searcher {
 	  std::vector<ExecutionState*> states;
 	  Executor &executor;
 
 	  public:
-	  	 DataFlowSearcher(Executor &executor);
-	    ~DataFlowSearcher();
+	  	 CPGSSearcher(Executor &executor);
+	    ~CPGSSearcher();
 
 	    ExecutionState &selectState();
 	    void update(ExecutionState *current,
@@ -317,7 +318,26 @@ namespace klee {
 	                  const std::set<ExecutionState*> &removedStates);
 	    bool empty() { return states.empty(); }
 	    void printName(llvm::raw_ostream &os) {
-	        os << "DataFlowSearcher\n";
+	        os << "CPGSSearcher\n";
+	    }
+  };
+
+
+  class SDGSSearcher : public Searcher {
+	  std::vector<ExecutionState*> states;
+	  Executor &executor;
+
+	  public:
+	  	 SDGSSearcher(Executor &executor);
+	    ~SDGSSearcher();
+
+	    ExecutionState &selectState();
+	    void update(ExecutionState *current,
+	                  const std::set<ExecutionState*> &addedStates,
+	                  const std::set<ExecutionState*> &removedStates);
+	    bool empty() { return states.empty(); }
+	    void printName(llvm::raw_ostream &os) {
+	        os << "SDGSSearcher\n";
 	    }
   };
 

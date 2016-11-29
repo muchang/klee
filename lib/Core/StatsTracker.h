@@ -83,11 +83,12 @@ namespace klee {
     double elapsed();
 
     void computeReachableUncovered();
-    void computeReachableDefUsePair();
+    void computeReachableDefUsePair(int mode);
   };
 
   uint64_t computeMinDistToUncovered(const KInstruction *ki,
                                      uint64_t minDistAtRA);
+  
 
 }
 

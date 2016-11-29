@@ -875,12 +875,9 @@ void StatsTracker::computeReachableUncovered() {
   }
 }
 
-
-
-
-
 //muchang
-void StatsTracker::computeReachableDefUsePair() {
+/* 1 for cupoint & def & use point; 2 for only def & use point;*/ 
+void StatsTracker::computeReachableDefUsePair(int mode) {
   KModule *km = executor.kmodule;
   Module *m = km->module;
   static bool init = true;
@@ -1029,9 +1026,22 @@ void StatsTracker::computeReachableDefUsePair() {
            it != ie; ++it) {
         unsigned id = infos.getInfo(it).id;
         instructions.push_back(&*it);
-        sm.setIndexedValue(stats::minDistToUncovered, 
+        if (mode == 1) {
+          sm.setIndexedValue(stats::minDistToUncovered, 
                            id, 
-                           executor.kmodule->dfinfos->isTarget(it));
+                           executor.kmodule->dfinfos->isCutpoint(it));
+        }
+        else if (mode == 2) {
+          //errs() << executor.kmodule->dfinfos->isDefUse(it) << "\n";
+          sm.setIndexedValue(stats::minDistToUncovered, 
+                           id, 
+                           executor.kmodule->dfinfos->isDefUse(it));
+        }
+        else {
+          sm.setIndexedValue(stats::minDistToUncovered, 
+                          id, 
+                          sm.getIndexedValue(stats::uncoveredInstructions, id));
+        }
       }
     }
   }

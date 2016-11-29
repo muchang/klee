@@ -87,7 +87,8 @@ class Executor : public Interpreter {
   friend class WeightedRandomSearcher;
   friend class SpecialFunctionHandler;
   friend class StatsTracker;
-  friend class DataFlowSearcher;
+  friend class CPGSSearcher;
+  friend class SDGSSearcher;
 
 public:
   class Timer {
@@ -474,8 +475,6 @@ public:
                                std::map<const std::string*, std::set<unsigned> > &res);
 
   Expr::Width getWidthForLLVMType(LLVM_TYPE_Q llvm::Type *type) const;
-
-  void setCilInfoTable(std::string cilInfoFile, unsigned int dupairID);
 };
 
 } // End klee namespace

@@ -26,6 +26,7 @@
 #include <iostream>
 
 
+
 namespace klee {
 
   enum UseType {
@@ -108,6 +109,7 @@ namespace klee {
 
   public:
 	  CilInfoTable(std::string, llvm::Module *);
+    ~CilInfoTable();
 
     unsigned getSize() const;
     /*Print the content of the CilInfoTable*/
@@ -117,7 +119,8 @@ namespace klee {
     bool update(ExecutionState &state, KInstruction *kinstruction);
     bool setTarget(unsigned int dupairID);
     bool coveredTarget();
-    bool isTarget(const llvm::Instruction* inst); 
+    bool isCutpoint(const llvm::Instruction* inst); 
+    int isDefUse(const llvm::Instruction* inst);
     bool setNodeInstruction(int func_id, int stmt_id, int branch_choice, int stmt_line, llvm::Instruction *inst);
   };
 

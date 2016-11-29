@@ -6,7 +6,6 @@
 using namespace klee;
 
 class PTreeNode;
-
 //**************************************************************************************************
 /* A tool function split the string by the delim. */
 std::vector<std::string> split(const std::string &s, char delim) {
@@ -143,12 +142,21 @@ Cutpoint::Cutpoint (std::string sequence) {
 	branch_choice = sequenceList[2];
 	var_line = sequenceList[3];
 }
-
+CilInfoTable::~CilInfoTable() {
+	print();
+	std::cout << "id: " << target->dua_id << " ; ";
+	std::cout << "status: ";
+	switch(target->status) {
+		case UnReach: std::cout << "UnReach ; ";break;
+		case ReachDef: std::cout << "ReachDef ; ";break;
+		case Covered: std::cout << "Covered ; ";break;
+		default: std::cout << "UnKnow ; ";break;
+	}	
+}
 
 
 
 CilInfoTable::CilInfoTable (std::string cilInfoFile, llvm::Module* module) {
-	std::cout << "Work with DU Searcher!";
 	std::ifstream fin(cilInfoFile.c_str());
 	//Read def-use pairs from the file defined by def-use-file command line option.
 	while(1){
@@ -157,7 +165,6 @@ CilInfoTable::CilInfoTable (std::string cilInfoFile, llvm::Module* module) {
 			defUseList.push_back(dupair);
 		}
 		else{
-			std::cout << "**************************************" << std::endl;
 			break;
 		}
 	}
@@ -185,7 +192,6 @@ CilInfoTable::CilInfoTable (std::string cilInfoFile, llvm::Module* module) {
 }
 bool CilInfoTable::setNodeInstruction(int func_id, int stmt_id, int branch_choice, int stmt_line, llvm::Instruction *inst) {
 	// todo: maybe could add index for nodes to speed up
-	// std::cout << "set inst on func id: " << func_id << " stmt id: " << stmt_id << " stmt line: " << stmt_line << " branch choice: " << branch_choice << " inst: " << inst << std::endl;
 	for (std::vector<klee::DefUsePair>::iterator dfIt = defUseList.begin(); dfIt != defUseList.end(); ++dfIt) {
 		if(dfIt->def.equals(func_id, stmt_id, stmt_line)) dfIt->def.inst = inst;
 		if(
@@ -235,6 +241,7 @@ void DefUsePair::update(ExecutionState &state, KInstruction *kinstruction) {
         def.ptreeNode = state.ptreeNode;
 		def.inst = kinstruction->inst;
 		status = ReachDef;
+		state.weight += 5;
     }
 	if( status == ReachDef && state.ptreeNode->isPosterityOf(def.ptreeNode) && use.equals(kinstruction)){
 		use.ptreeNode = state.ptreeNode;
@@ -255,6 +262,8 @@ bool CilInfoTable::update(ExecutionState &state, KInstruction *kinstruction) {
 			return false;
 		}
     }
+
+	// if( target->status == ReachDef) return false;
 	return true;
 }
 //**************************************************************************************************
@@ -345,18 +354,31 @@ bool CilInfoTable::coveredTarget(){
 	return target->status == Covered;
 }
 
-bool CilInfoTable::isTarget(const llvm::Instruction* inst) {
+bool CilInfoTable::isCutpoint(const llvm::Instruction* inst) {
 	if (target->status == UnReach) {
-		if (target->def.inst == inst) return true;
+		if (target->def.inst == inst) return 1;
 		for(std::vector<Cutpoint>::iterator cp = target->def.cutpoints.begin(); cp != target->def.cutpoints.end(); ++cp) {
-        	if (cp->inst == inst) return true;
+        	if (cp->inst == inst) return 1;
     	}
 	}
 	else if (target->status == ReachDef) {
-		if (target->use.inst == inst) return true;
+		if (target->use.inst == inst) return 1;
 		for(std::vector<Cutpoint>::iterator cp = target->use.cutpoints.begin(); cp != target->use.cutpoints.end(); ++cp) {
-			if (cp->inst == inst) return true;
+			if (cp->inst == inst) return 1;
 		}
 	}
-	return false;
+	return INT_MAX;
+}
+
+
+int CilInfoTable::isDefUse(const llvm::Instruction* inst) {
+	if (target->status == UnReach) {
+		if (target->def.inst == inst)
+			return 1;
+	}	
+	else if (target->status == ReachDef) {
+		if(target->use.inst == inst)
+			return 1;
+	}
+	return INT_MAX;
 }

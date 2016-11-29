@@ -3,6 +3,7 @@
 // FIXME: This does not belong here.
 #include "../lib/Core/Common.h"
 
+
 #include "klee/ExecutionState.h"
 #include "klee/Expr.h"
 #include "klee/Interpreter.h"
@@ -54,9 +55,11 @@
 #include <dirent.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 
+#include <iostream>
 #include <cerrno>
 #include <fstream>
 #include <iomanip>
@@ -273,7 +276,7 @@ KleeHandler::KleeHandler(int argc, char **argv)
     m_pathsExplored(0),
     m_argc(argc),
     m_argv(argv) {
-
+      
   // create output directory (OutputDir or "klee-out-<i>")
   bool dir_given = OutputDir != "";
   SmallString<128> directory(dir_given ? OutputDir : InputFile);
@@ -1380,7 +1383,10 @@ int main(int argc, char **argv, char **envp) {
 
   char buf[256];
   time_t t[2];
-  t[0] = time(NULL);
+  // t[0] = time(NULL);
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  t[0] = tv.tv_sec;
   strftime(buf, sizeof(buf), "Started: %Y-%m-%d %H:%M:%S\n", localtime(&t[0]));
   infoFile << buf;
   infoFile.flush();
@@ -1482,7 +1488,10 @@ int main(int argc, char **argv, char **envp) {
     }
   }
 
-  t[1] = time(NULL);
+  struct timeval tv2;
+  gettimeofday(&tv2, NULL);
+  t[1] = tv2.tv_sec;
+  // t[1] = time(NULL);
   strftime(buf, sizeof(buf), "Finished: %Y-%m-%d %H:%M:%S\n", localtime(&t[1]));
   infoFile << buf;
 
@@ -1526,6 +1535,12 @@ int main(int argc, char **argv, char **envp) {
     << "KLEE: done: valid queries = " << queriesValid << "\n"
     << "KLEE: done: invalid queries = " << queriesInvalid << "\n"
     << "KLEE: done: query cex = " << queryCounterexamples << "\n";
+
+  //muchang
+	std::cout << "Elapsed : " << ((tv2.tv_sec*1000000+tv2.tv_usec) - (tv.tv_sec*1000000+tv.tv_usec))/1000000.0 << " ; "
+			<< "explored paths : " << 1 + forks << " ; "
+			<< "generated tests : " << handler->getNumTestCases() << " ; "
+			<< "total instructions : " << instructions << "\n";  
 
   std::stringstream stats;
   stats << "\n";

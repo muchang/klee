@@ -118,6 +118,7 @@ KModule::KModule(Module *_module)
 KModule::~KModule() {
   delete[] constantTable;
   delete infos;
+  delete dfinfos;
 
   for (std::vector<KFunction*>::iterator it = functions.begin(), 
          ie = functions.end(); it != ie; ++it)
