@@ -47,6 +47,7 @@ public:
 
 class Interpreter {
 public:
+  bool isCovered;  
   /// ModuleOptions - Module level options which can be set when
   /// registering a module with the interpreter.
   struct ModuleOptions {
@@ -84,10 +85,11 @@ public:
 
 protected:
   const InterpreterOptions interpreterOpts;
+  
 
   Interpreter(const InterpreterOptions &_interpreterOpts)
     : interpreterOpts(_interpreterOpts)
-  {}
+  {isCovered = false;}
 
 public:
   virtual ~Interpreter() {}

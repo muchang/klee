@@ -385,6 +385,7 @@ const Module *Executor::setModule(llvm::Module *module,
 
   //muchang
   if(UseDataFlow != ""){
+    isCovered = false;
   	kmodule->setCilInfoTable(UseDataFlow, DUPairID);
   }
 
@@ -2435,6 +2436,7 @@ void Executor::updateStates(ExecutionState *current) {
 
   //muchang
   if(kmodule->dfinfos->coveredTarget()){
+    isCovered = true;
     removedStates.insert(states.begin(), states.end());
   }
 
