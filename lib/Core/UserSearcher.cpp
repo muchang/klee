@@ -65,14 +65,18 @@ namespace {
            cl::desc("Enable support for klee_merge() (extra experimental)"));
   
   cl::opt<bool>
-  UseCPGSSearcher("use-CPGSSearcher", 
-           cl::desc("Use Cutpoint Guided Search for Dataflow Testing."));
+  UseDataflowSearcher("use-dataflow-search", 
+           cl::desc("Use SDGS+CPGS+Pruning strategies for Dataflow Testing."));
 
   cl::opt<bool>
-  UseSDGSSearcher("use-SDGSSearcher", 
-           cl::desc("Use Shortest Distance Guided Search for Dataflow Testing."));      
-
-
+  DisableCPGS("disable-CPGS",
+           cl::desc("disable CPGSSearcher in Dataflow Testing."),
+           cl::init(0));
+  
+  cl::opt<bool>
+  DisableSDGS("disable-SDGS",
+           cl::desc("disable SDGSSearcher in dataflow testing."),
+           cl::init(0));
 }
 
 
@@ -140,13 +144,18 @@ Searcher *klee::constructUserSearcher(Executor &executor) {
     searcher = new IterativeDeepeningTimeSearcher(searcher);
   }
 
-  if (UseCPGSSearcher) {
+  if (UseDataflowSearcher) {
+    searcher = new DataflowSearcher(executor);
+  }
+
+  if (UseDataflowSearcher && DisableCPGS){
+    searcher = new SDGSSearcher(executor);
+  }
+
+  if (UseDataflowSearcher && DisableSDGS){
     searcher = new CPGSSearcher(executor);
   }
 
-  if (UseSDGSSearcher) {
-    searcher = new SDGSSearcher(executor); 
-  }
 
   llvm::raw_ostream &os = executor.getHandler().getInfoStream();
 

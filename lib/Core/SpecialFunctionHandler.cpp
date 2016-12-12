@@ -50,6 +50,11 @@ namespace {
                    cl::desc("Silently terminate paths with an infeasible "
                             "condition given to klee_assume() rather than "
                             "emitting an error (default=false)"));
+
+  cl::opt<bool>
+  DisablePruning("disable-Pruning",
+           cl::desc("disable Pruning in dataflow testing."),
+           cl::init(0));
 }
 
 
@@ -783,6 +788,6 @@ void SpecialFunctionHandler::handleDivRemOverflow(ExecutionState &state,
 void SpecialFunctionHandler::handleStmtMonitor(ExecutionState &state,
                                                KInstruction *target,
                                                std::vector<ref<Expr> > &arguments) {
-  if(!executor.kmodule->dfinfos->update(state, target)) executor.removedStates.insert(&state);
+  if(!executor.kmodule->dfinfos->update(state, target) && !DisablePruning) executor.removedStates.insert(&state);
   if(executor.kmodule->dfinfos->coveredTarget()) executor.terminateStateEarly(state,"Cover def-use pair");
 }

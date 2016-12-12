@@ -5,7 +5,7 @@ run_klee(){
     while(( $int<=$1 ))
     do
         klee -dataflow-testing-with=$2 -max-depth=50 \
-        -def-use-pair-id=$int $4 $3 >> $5 2>>/dev/null
+        -def-use-pair-id=$int $4 $6 $7 $3 >> $5 2>>/dev/null
         if [ $? == 1 ] 
         then    
             let "covnum++"
@@ -19,4 +19,4 @@ run_klee(){
     echo "scale=4;$covnum / $1" | bc >> $5
 }
 
-(time run_klee $1 $2 $3 $4 $5) 2>> $5
+(time run_klee $1 $2 $3 $4 $5 $6 $7) 2>> $5

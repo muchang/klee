@@ -636,7 +636,6 @@ CPGSSearcher::~CPGSSearcher(){
 
 ExecutionState &CPGSSearcher::selectState() {
   ExecutionState* candidate = NULL;
-  bool flag = false;
   for (std::vector<ExecutionState*>::iterator it = states.begin(),
              ie = states.end(); it != ie; ++it) {
       ExecutionState* es = *it;
@@ -645,25 +644,9 @@ ExecutionState &CPGSSearcher::selectState() {
         candidate = es;
       else if (es->weight > candidate->weight) {
         candidate = es;
-        flag = true;
       }
-      else if (es->weight < candidate->weight)
-        flag = true;
   }
   //use min-distance method if there no cutpoint to be selected
-  if(flag == false) {
-    int maxEval = 0;
-    executor.statsTracker->computeReachableDefUsePair(1);
-    for (std::vector<ExecutionState*>::iterator it = states.begin(),
-             ie = states.end(); it != ie; ++it) {
-      ExecutionState* es = *it;
-      int eval = computeMinDistToUncovered(es->pc,es->stack.back().minDistToUncoveredOnReturn);
-      if(candidate == NULL || eval < maxEval){
-        candidate = es;
-        maxEval = eval;
-      } 
-    }
-  }
   if(candidate != NULL)
     return *candidate;
   else  
@@ -752,3 +735,73 @@ void SDGSSearcher::update(ExecutionState *current,
   }
 }
 
+DataflowSearcher::DataflowSearcher(Executor &_executor)
+	  : executor(_executor) {
+}
+
+DataflowSearcher::~DataflowSearcher(){
+}
+
+ExecutionState &DataflowSearcher::selectState() {
+  ExecutionState* candidate = NULL;
+  bool flag = false;
+  for (std::vector<ExecutionState*>::iterator it = states.begin(),
+             ie = states.end(); it != ie; ++it) {
+      ExecutionState* es = *it;
+      es->weight += executor.kmodule->dfinfos->evaluate(es);
+      if(candidate == NULL)
+        candidate = es;
+      else if (es->weight > candidate->weight) {
+        candidate = es;
+        flag = true;
+      }
+      else if (es->weight < candidate->weight)
+        flag = true;
+  }
+  //use min-distance method if there no cutpoint to be selected
+  if(flag == false) {
+    int maxEval = 0;
+    executor.statsTracker->computeReachableDefUsePair(1);
+    for (std::vector<ExecutionState*>::iterator it = states.begin(),
+            ie = states.end(); it != ie; ++it) {
+      ExecutionState* es = *it;
+      int eval = computeMinDistToUncovered(es->pc,es->stack.back().minDistToUncoveredOnReturn);
+      if(candidate == NULL || eval < maxEval){
+        candidate = es;
+        maxEval = eval;
+      } 
+    }
+  }
+  if(candidate != NULL)
+    return *candidate;
+  else  
+    return *states.back();
+}
+
+void DataflowSearcher::update(ExecutionState *current,
+                         const std::set<ExecutionState*> &addedStates,
+                         const std::set<ExecutionState*> &removedStates) {
+  states.insert(states.end(),
+                addedStates.begin(),
+                addedStates.end());
+  for (std::set<ExecutionState*>::const_iterator it = removedStates.begin(),
+         ie = removedStates.end(); it != ie; ++it) {
+    ExecutionState *es = *it;
+    if (es == states.back()) {
+      states.pop_back();
+    } else {
+      bool ok = false;
+
+      for (std::vector<ExecutionState*>::iterator it = states.begin(),
+             ie = states.end(); it != ie; ++it) {
+        if (es==*it) {
+          states.erase(it);
+          ok = true;
+          break;
+        }
+      }
+
+      assert(ok && "invalid state removed");
+    }
+  }
+}
