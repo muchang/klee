@@ -1538,10 +1538,15 @@ int main(int argc, char **argv, char **envp) {
     << "KLEE: done: query cex = " << queryCounterexamples << "\n";
 
   //muchang
-	std::cout << "Elapsed : " << ((tv2.tv_sec*1000000+tv2.tv_usec) - (tv.tv_sec*1000000+tv.tv_usec))/1000000.0 << " ; "
-			<< "explored paths : " << 1 + forks << " ; "
-			<< "generated tests : " << handler->getNumTestCases() << " ; "
-			<< "total instructions : " << instructions << "\n";  
+	// std::cout << "Elapsed : " << ((tv2.tv_sec*1000000+tv2.tv_usec) - (tv.tv_sec*1000000+tv.tv_usec))/1000000.0 << " ; "
+	// 		<< "explored paths : " << 1 + forks << " ; "
+	// 		<< "generated tests : " << handler->getNumTestCases() << " ; "
+	// 		<< "total instructions : " << instructions << "\n";  
+  
+  std::cout << ((tv2.tv_sec*1000000+tv2.tv_usec) - (tv.tv_sec*1000000+tv.tv_usec))/1000000.0 << ","
+			<< 1 + forks << ","
+			<< handler->getNumTestCases() << ","
+			<< instructions << "\n";  
 
   std::stringstream stats;
   stats << "\n";

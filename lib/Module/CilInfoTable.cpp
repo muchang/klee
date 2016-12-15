@@ -144,13 +144,12 @@ Cutpoint::Cutpoint (std::string sequence) {
 }
 CilInfoTable::~CilInfoTable() {
 	print();
-	std::cout << "id: " << target->dua_id << " ; ";
-	std::cout << "status: ";
+	std::cout << target->dua_id << ",";
 	switch(target->status) {
-		case UnReach: std::cout << "UnReach ; ";break;
-		case ReachDef: std::cout << "ReachDef ; ";break;
-		case Covered: std::cout << "Covered ; ";break;
-		default: std::cout << "UnKnow ; ";break;
+		case UnReach: std::cout << "0,";break; 
+		case ReachDef: std::cout << "1,";break;
+		case Covered: std::cout << "2,";break;
+		default: std::cout << "-1,";break;
 	}	
 }
 
@@ -295,7 +294,7 @@ bool Node::blockEquals(const KInstruction *kinstruction) {
 }
 
 int Cutpoint::evaluate(const KInstruction *kinstruction) {
-    if(blockEquals(kinstruction))
+    if(equals(kinstruction))
         return 1;
     else
         return 0;
@@ -304,7 +303,7 @@ int Cutpoint::evaluate(const KInstruction *kinstruction) {
 
 int klee::Use::evaluate(const KInstruction *kinstruction) {
     int value = 0;
-    if(blockEquals(kinstruction))
+    if(equals(kinstruction))
         value += 10;
     std::vector<Cutpoint>::iterator cp;
     for(cp = cutpoints.begin(); cp != cutpoints.end(); ++cp) {
@@ -315,7 +314,7 @@ int klee::Use::evaluate(const KInstruction *kinstruction) {
 
 int Definition::evaluate(const KInstruction *kinstruction) {
     int value = 0;
-    if(blockEquals(kinstruction))
+    if(equals(kinstruction))
         value += 5;
     
     std::vector<Cutpoint>::iterator cp;

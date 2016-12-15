@@ -4,7 +4,7 @@ run_klee(){
     int=1
     while(( $int<=$1 ))
     do
-        klee -dataflow-testing-with=$2 -max-depth=50 \
+        klee -dataflow-testing-with=$2 -max-depth=10 \
         -def-use-pair-id=$int $4 $6 $7 $3 >> $5 2>>/dev/null
         if [ $? == 1 ] 
         then    
@@ -20,3 +20,5 @@ run_klee(){
 }
 
 (time run_klee $1 $2 $3 $4 $5 $6 $7) 2>> $5
+
+rm -r klee-out-*
