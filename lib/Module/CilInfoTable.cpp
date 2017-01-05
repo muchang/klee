@@ -235,34 +235,57 @@ bool Node::equals (int func_id, int stmt_id, int stmt_line) {
 	return int2str(func_id) == this->func_id && int2str(stmt_id) == this->stmt_id;
 }
 
-void DefUsePair::update(ExecutionState &state, KInstruction *kinstruction) {
+DupairStatus DefUsePair::update(const ExecutionState &state, const KInstruction *kinstruction) {
     if(def.equals(kinstruction) && status != Covered){
-        def.ptreeNode = state.ptreeNode;
+        def.ptreeNodes.push_back(state.ptreeNode);
 		def.inst = kinstruction->inst;
 		status = ReachDef;
-		state.weight += 5;
+		return ReachDef;
     }
-	if( status == ReachDef && state.ptreeNode->isPosterityOf(def.ptreeNode) && use.equals(kinstruction)){
-		use.ptreeNode = state.ptreeNode;
-		status = Covered;
-	} 
+	for(std::vector<PTreeNode*>::iterator it = def.ptreeNodes.begin(); it != def.ptreeNodes.end(); ++it) {
+		if( status == ReachDef && state.ptreeNode->isPosterityOf(*it) && use.equals(kinstruction)){
+			//check redefine
+			bool haveRedef = false;
+			for(std::vector<PTreeNode*>::iterator redef = redefine_candidates.begin(); redef != redefine_candidates.end(); ++redef) {
+				if(state.ptreeNode->isPosterityOf(*redef) && (*redef)->isPosterityOf(*it) && it!=redef)
+					haveRedef = true;
+			}
+			if(haveRedef == false){
+				status = Covered;
+				return Covered;
+			}
+		}
+	}
+	return UnReach;
+}
+
+void DefUsePair::addRedefineCandidate(const ExecutionState &state) {
+	redefine_candidates.push_back(state.ptreeNode);
 }
 
 bool CilInfoTable::update(ExecutionState &state, KInstruction *kinstruction) {
+	for(std::vector<DefUsePair>::iterator it = defUseList.begin(); it != defUseList.end(); ++it){
+		it->update(state, kinstruction);
+	}
     for(std::vector<DefUsePair>::iterator it = defUseList.begin(); it != defUseList.end(); ++it)
-        it->update(state, kinstruction);
+		if(it->def.equals(kinstruction)) 
+			 for(std::vector<DefUsePair>::iterator it2 = defUseList.begin(); it2 != defUseList.end(); ++it2)
+				 if(it->def.withSameVariableAs(it2->def) && it!=it2)
+					for(std::vector<PTreeNode*>::iterator defNode = it2->def.ptreeNodes.begin(); defNode != it2->def.ptreeNodes.end(); ++defNode)
+						if(state.ptreeNode->isPosterityOf(*defNode) && !it2->def.equals(kinstruction))
+							it2->addRedefineCandidate(state);
 
 	for(std::vector<DefUsePair>::iterator it = defUseList.begin(); it != defUseList.end(); ++it) {
         if (it != target &&
 		    target->status == ReachDef &&
 			it->def.equals(kinstruction) && 
-			it->def.withSameVariableAs(target->def) &&
-			state.ptreeNode->isPosterityOf(target->def.ptreeNode)) {
-			return false;
+			it->def.withSameVariableAs(target->def)) {
+			for(std::vector<PTreeNode*>::iterator it = target->def.ptreeNodes.begin(); it != target->def.ptreeNodes.end(); ++it) {
+				if(state.ptreeNode->isPosterityOf(*it))
+					return false;
+			}
 		}
     }
-
-	// if( target->status == ReachDef) return false;
 	return true;
 }
 //**************************************************************************************************
@@ -293,48 +316,54 @@ bool Node::blockEquals(const KInstruction *kinstruction) {
 	return inst->getParent() == kinstruction->inst->getParent();
 }
 
-int Cutpoint::evaluate(const KInstruction *kinstruction) {
-    if(equals(kinstruction))
-        return 1;
-    else
-        return 0;
+int Cutpoint::evaluate(const ExecutionState *es){
+    if(equals(es->pc)) {
+		llvm::errs() << *es->pc->inst << "\n";
+		for(std::vector<PTreeNode*>::iterator it = ptreeNodes.begin(); it != ptreeNodes.end(); ++it)
+			if(es->ptreeNode->isPosterityOf(*it)){
+				return -2;
+			}	
+	    ptreeNodes.push_back(es->ptreeNode);
+		return 10;
+	}
+    return 0;
 }
 
 
-int klee::Use::evaluate(const KInstruction *kinstruction) {
+int klee::Use::evaluate(const ExecutionState *es){
     int value = 0;
-    if(equals(kinstruction))
+    if(equals(es->pc))
         value += 10;
     std::vector<Cutpoint>::iterator cp;
     for(cp = cutpoints.begin(); cp != cutpoints.end(); ++cp) {
-        value += cp->evaluate(kinstruction);
+        value += cp->evaluate(es);
     }
     return value;
 }
 
-int Definition::evaluate(const KInstruction *kinstruction) {
+int Definition::evaluate(const ExecutionState *es){
     int value = 0;
-    if(equals(kinstruction))
+    if(equals(es->pc))
         value += 5;
     
     std::vector<Cutpoint>::iterator cp;
     for(cp = cutpoints.begin(); cp != cutpoints.end(); ++cp) {
-       value += cp->evaluate(kinstruction);
+       value += cp->evaluate(es);
     }
     return value;
 }
 
-int DefUsePair::evaluate (const KInstruction *kinstruction) {
+int DefUsePair::evaluate(const ExecutionState *es){
 	int value = 0;
 	if(status == UnReach)
-    	value = def.evaluate(kinstruction);
+    	value = def.evaluate(es);
 	if(status == ReachDef)
-    	value += use.evaluate(kinstruction);
+    	value += use.evaluate(es);
     return value;
 }
 
 int CilInfoTable::evaluate (const ExecutionState *es) {
-    return target->evaluate(es->pc);
+    return target->evaluate(es);
 }
 //**************************************************************************************************
 

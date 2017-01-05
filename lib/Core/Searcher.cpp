@@ -748,15 +748,20 @@ ExecutionState &DataflowSearcher::selectState() {
   for (std::vector<ExecutionState*>::iterator it = states.begin(),
              ie = states.end(); it != ie; ++it) {
       ExecutionState* es = *it;
-      es->weight += executor.kmodule->dfinfos->evaluate(es);
-      if(candidate == NULL)
-        candidate = es;
-      else if (es->weight > candidate->weight) {
-        candidate = es;
+      int evaluate = executor.kmodule->dfinfos->evaluate(es);
+      if (evaluate != 0)
         flag = true;
-      }
-      else if (es->weight < candidate->weight)
-        flag = true;
+      es->weight += evaluate;
+      if(candidate == NULL || es->weight > candidate->weight)
+        candidate = es;
+      // if(candidate == NULL)
+      //   candidate = es;
+      // else if (es->weight > candidate->weight) {
+      //   candidate = es;
+      //   flag = true;
+      // }
+      // else if (es->weight < candidate->weight)
+      //   flag = true;
   }
   //use min-distance method if there no cutpoint to be selected
   if(flag == false) {

@@ -47,7 +47,7 @@ namespace klee {
 	  std::string stmt_id;
     std::string var_line;
 
-    PTreeNode* ptreeNode;
+    std::vector<PTreeNode*> ptreeNodes;
     llvm::Instruction *inst;
 
     Node();
@@ -61,7 +61,7 @@ namespace klee {
 
     Cutpoint(std::string);
     void print();
-    int evaluate(const KInstruction *);
+    int evaluate(const ExecutionState *es);
   };
 
   struct Point: public Node {
@@ -78,12 +78,12 @@ namespace klee {
   struct Definition : public Point {
 	  bool withSameVariableAs(const Definition& );
 	  void print();
-    int evaluate(const KInstruction *);
+    int evaluate(const ExecutionState *es);
   };
 
   struct Use : public Point {
 	  void print();
-    int evaluate(const KInstruction *);
+    int evaluate(const ExecutionState *es);
   };
 
   struct DefUsePair {
@@ -91,14 +91,16 @@ namespace klee {
     Definition def;
     Use use;
     UseType type;
+    std::vector<PTreeNode*> redefine_candidates;
 
     DupairStatus status;
     bool checkRedefine(const Use&);
     bool read(std::ifstream& );
     void print();
     bool equalKind(const Use&, const Cutpoint&);
-    int evaluate(const KInstruction *);
-    void update(ExecutionState &state, KInstruction *kinstruction);
+    int evaluate(const ExecutionState *es);
+    DupairStatus update(const ExecutionState &state, const KInstruction *kinstruction);
+    void addRedefineCandidate(const ExecutionState &state);
   };
 
   class CilInfoTable {
@@ -115,7 +117,7 @@ namespace klee {
     /*Print the content of the CilInfoTable*/
     void print();
     /*Update defUsePair in CilInfoTable when meet klee_cil_info function*/
-    int evaluate(const ExecutionState *);
+    int evaluate(const ExecutionState *es);
     bool update(ExecutionState &state, KInstruction *kinstruction);
     bool setTarget(unsigned int dupairID);
     bool coveredTarget();
