@@ -56,13 +56,54 @@ bool DefUsePair::read (std::ifstream& fin){
 
 		std::string tmp_status;
 		fin >> tmp_status;
-		status = UnReach;
+		if(tmp_status == "0")
+			status = UnReach;
+		else if(tmp_status == "1")
+			status = ReachDef;
+		else if(tmp_status == "2")
+			status = Covered;
 		return true;
 
 	}
 	else{
 		return false;
 	}
+}
+
+void Point::write (std::ofstream& fout) {
+	fout << var_name << " " << var_id << " " << var_line << " " << file_name << " " << func_name << " " << func_id << " " << stmt_id << " ";
+    std::vector<Cutpoint>::iterator it;
+	it = cutpoints.begin();
+	if(it == cutpoints.end()){
+		fout << "no ";
+		return ;
+	}	
+	else
+		fout << it->func_id << ":" <<  it->stmt_id << ":" << it->branch_choice << ":" << it->var_line;
+	for ( ++it; it != cutpoints.end(); ++it){
+		fout << ";" << it->func_id << ":" <<  it->stmt_id << ":" << it->var_line ;
+	}
+	fout << "# ";
+}
+
+void DefUsePair::write (std::ofstream& fout){
+	fout << dua_id << " ";
+	if(this->type == Cuse)
+		fout << "0 ";
+	else if(this->type == PTuse)
+		fout << "1 ";
+	else if(this->type ==PFuse)
+		fout << "2 ";
+	
+	def.write(fout);
+	use.write(fout);
+
+	if(status == UnReach)
+		fout << "0\n";
+	else if(status == ReachDef)
+		fout << "1\n";
+	else if(status == Covered)
+		fout << "2\n";
 }
 //**************************************************************************************************
 
@@ -94,7 +135,6 @@ void Use::print() {
 
 void Cutpoint::print() {
 	std::cerr << "\nCutpoints: func_id:" << func_id << " " << "stmt_id:" << stmt_id << " "<< "var_line:" << var_line;
-	if(inst) llvm::errs() << " inst: " << *inst;
 }
 
 void DefUsePair::print() {
@@ -150,13 +190,21 @@ CilInfoTable::~CilInfoTable() {
 		case ReachDef: std::cout << "1,";break;
 		case Covered: std::cout << "2,";break;
 		default: std::cout << "-1,";break;
+	}
+
+	std::ofstream fout((cilinfofile+".new").c_str());
+	std::vector<klee::DefUsePair>::iterator it;
+	for(it = defUseList.begin(); it != defUseList.end(); ++it) {
+		it->write(fout);
 	}	
+	fout.close();
 }
 
 
 
 CilInfoTable::CilInfoTable (std::string cilInfoFile, llvm::Module* module) {
 	std::ifstream fin(cilInfoFile.c_str());
+	cilinfofile = cilInfoFile;
 	//Read def-use pairs from the file defined by def-use-file command line option.
 	while(1){
 		DefUsePair dupair;
@@ -219,7 +267,6 @@ bool CilInfoTable::setNodeInstruction(int func_id, int stmt_id, int branch_choic
 	}
 	return true;
 }
-//**************************************************************************************************
 
 
 

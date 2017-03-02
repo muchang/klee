@@ -73,6 +73,7 @@ namespace klee {
 
 	  void print();
     void read(std::ifstream& fin);
+    void write(std::ofstream& fout);
   };
 
   struct Definition : public Point {
@@ -95,7 +96,8 @@ namespace klee {
 
     DupairStatus status;
     bool checkRedefine(const Use&);
-    bool read(std::ifstream& );
+    bool read(std::ifstream&);
+    void write(std::ofstream&);
     void print();
     bool equalKind(const Use&, const Cutpoint&);
     int evaluate(const ExecutionState *es);
@@ -108,6 +110,7 @@ namespace klee {
   private:
 	  std::vector<DefUsePair> defUseList;
     std::vector<DefUsePair>::iterator target;
+    std::string cilinfofile;
 
   public:
 	  CilInfoTable(std::string, llvm::Module *);
