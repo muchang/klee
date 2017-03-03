@@ -81,7 +81,7 @@ void Point::write (std::ofstream& fout) {
 	else
 		fout << it->func_id << ":" <<  it->stmt_id << ":" << it->branch_choice << ":" << it->var_line;
 	for ( ++it; it != cutpoints.end(); ++it){
-		fout << ";" << it->func_id << ":" <<  it->stmt_id << ":" << it->var_line ;
+		fout << ";" << it->func_id << ":" <<  it->stmt_id << ":" << it->branch_choice << ":" << it->var_line ;
 	}
 	fout << "# ";
 }
@@ -418,8 +418,12 @@ int CilInfoTable::evaluate (const ExecutionState *es) {
 
 bool CilInfoTable::setTarget(unsigned int dupairID) {
 	for(target = defUseList.begin();target != defUseList.end();target++) {
-		if (std::strtoul (target->dua_id.c_str(), NULL, 0) == dupairID) 
-			return true;
+		if (std::strtoul (target->dua_id.c_str(), NULL, 0) == dupairID){
+			if(target->status == Covered) 
+				return false;
+			else
+				return true;
+		}
 	}
 	target = defUseList.begin();
     return false;

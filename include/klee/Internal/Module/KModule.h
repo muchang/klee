@@ -133,7 +133,7 @@ namespace klee {
     /// Return an id for the given constant, creating a new one if necessary.
     unsigned getConstantID(llvm::Constant *c, KInstruction* ki);
 
-    void setCilInfoTable(std::string cilInfoFile, unsigned int dupairID);
+    bool setCilInfoTable(std::string cilInfoFile, unsigned int dupairID);
   };
 } // End klee namespace
 

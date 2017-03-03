@@ -1499,7 +1499,7 @@ int main(int argc, char **argv, char **envp) {
   strcpy(format_tdiff(buf, t[1] - t[0]), "\n");
   infoFile << buf;
 
-  bool isCovered = interpreter->isCovered;
+  int dfStatus = interpreter->dfStatus;
   // Free all the args.
   for (unsigned i=0; i<InputArgv.size()+1; i++)
     delete[] pArgv[i];
@@ -1578,5 +1578,5 @@ int main(int argc, char **argv, char **envp) {
 #endif
   delete handler;
 
-  return isCovered;
+  return dfStatus;
 }

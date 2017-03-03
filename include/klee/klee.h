@@ -17,7 +17,9 @@
 extern "C" {
 #endif
   
+  
   /*muchang*/
+  void df_stmt_monitor(int, int, int, int);
   void klee_cil_info(const char *info0, const char *info1, const char *info2, const char *info3, const char *info4,const char *info5 ,const char *info6, const char *info7);
 
   /* Add an accesible memory object at a user specified location. It

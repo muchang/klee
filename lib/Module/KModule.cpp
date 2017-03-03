@@ -495,9 +495,9 @@ unsigned KModule::getConstantID(Constant *c, KInstruction* ki) {
 }
 
 
-void KModule::setCilInfoTable(std::string cilInfoFile, unsigned int dupairID){
+bool KModule::setCilInfoTable(std::string cilInfoFile, unsigned int dupairID){
 	dfinfos = new CilInfoTable(cilInfoFile, module);
-  dfinfos->setTarget(dupairID);
+  return dfinfos->setTarget(dupairID);
 }
 
 /***/
