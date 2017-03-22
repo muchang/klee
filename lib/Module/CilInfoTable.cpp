@@ -24,6 +24,7 @@ std::string int2str (int i) {
 }
 
 void Point::read (std::ifstream& fin) {
+	uncovered_cp_index = 0;
 	fin >> var_name >> var_id >> var_line >> file_name >> func_name >> func_id >> stmt_id;
 	std::string tmp_cutpoints;
 	fin >> tmp_cutpoints;
@@ -364,7 +365,6 @@ bool Node::blockEquals(const KInstruction *kinstruction) {
 
 int Cutpoint::evaluate(const ExecutionState *es){
     if(equals(es->pc)) {
-		llvm::errs() << *es->pc->inst << "\n";
 		for(std::vector<PTreeNode*>::iterator it = ptreeNodes.begin(); it != ptreeNodes.end(); ++it)
 			if(es->ptreeNode->isPosterityOf(*it)){
 				return -2;
