@@ -183,7 +183,6 @@ Cutpoint::Cutpoint (std::string sequence) {
 	var_line = sequenceList[3];
 }
 CilInfoTable::~CilInfoTable() {
-	print();
 	std::cout << target->dua_id << ",";
 	switch(target->status) {
 		case UnReach: std::cout << "0,";break; 
