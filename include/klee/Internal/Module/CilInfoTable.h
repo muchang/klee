@@ -70,6 +70,7 @@ namespace klee {
 	  std::string file_name;
 	  std::string func_name;
     std::vector<Cutpoint> cutpoints;
+    //int uncovered_cp_index;
 
 	  void print();
     void read(std::ifstream& fin);

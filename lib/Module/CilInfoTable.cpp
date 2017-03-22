@@ -24,7 +24,7 @@ std::string int2str (int i) {
 }
 
 void Point::read (std::ifstream& fin) {
-	uncovered_cp_index = 0;
+	//uncovered_cp_index = 0;
 	fin >> var_name >> var_id >> var_line >> file_name >> func_name >> func_id >> stmt_id;
 	std::string tmp_cutpoints;
 	fin >> tmp_cutpoints;
