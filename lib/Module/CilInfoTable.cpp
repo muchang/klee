@@ -224,7 +224,7 @@ CilInfoTable::CilInfoTable (std::string cilInfoFile, llvm::Module* module) {
 			for (llvm::BasicBlock::iterator it = bbIt->begin(); it != bbIt->end(); ++it) {
 				if (isa<llvm::CallInst>(it)) {
 					llvm::CallInst* cIn = cast<llvm::CallInst>(it);
-					if ("df_stmt_monitor" == cIn->getCalledFunction()->getName().str()) {
+					if (0 != cIn->getCalledFunction() && "df_stmt_monitor" == cIn->getCalledFunction()->getName().str()) {
 						assert(4 == cIn->getNumArgOperands());
 						int func_id = cast<llvm::ConstantInt>(cIn->getArgOperand(0))->getSExtValue(),
 						    stmt_id = cast<llvm::ConstantInt>(cIn->getArgOperand(1))->getSExtValue(),
@@ -400,6 +400,7 @@ int Definition::evaluate(const ExecutionState *es){
 }
 
 int DefUsePair::evaluate(const ExecutionState *es){
+    if (es == 0) return 0;
 	int value = 0;
 	if(status == UnReach)
     	value = def.evaluate(es);
