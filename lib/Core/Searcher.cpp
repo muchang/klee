@@ -765,6 +765,7 @@ ExecutionState &DataflowSearcher::selectState() {
   }
   //use min-distance method if there no cutpoint to be selected
   if(flag == false) {
+    candidate = NULL;
     int maxEval = 0;
     executor.statsTracker->computeReachableDefUsePair(1);
     for (std::vector<ExecutionState*>::iterator it = states.begin(),

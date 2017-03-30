@@ -70,7 +70,7 @@ namespace klee {
 	  std::string file_name;
 	  std::string func_name;
     std::vector<Cutpoint> cutpoints;
-    //int uncovered_cp_index;
+    std::vector<Cutpoint>::iterator cp_index;
 
 	  void print();
     void read(std::ifstream& fin);
@@ -125,7 +125,7 @@ namespace klee {
     bool update(ExecutionState &state, KInstruction *kinstruction);
     bool setTarget(unsigned int dupairID);
     bool coveredTarget();
-    bool isCutpoint(const llvm::Instruction* inst); 
+    int isCutpoint(const llvm::Instruction* inst); 
     int isDefUse(const llvm::Instruction* inst);
     bool setNodeInstruction(int func_id, int stmt_id, int branch_choice, int stmt_line, llvm::Instruction *inst);
   };

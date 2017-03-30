@@ -1027,6 +1027,7 @@ void StatsTracker::computeReachableDefUsePair(int mode) {
         unsigned id = infos.getInfo(it).id;
         instructions.push_back(&*it);
         if (mode == 1) {
+          //errs() << executor.kmodule->dfinfos->isCutpoint(it) << "!!!\n\n";
           sm.setIndexedValue(stats::minDistToUncovered, 
                            id, 
                            executor.kmodule->dfinfos->isCutpoint(it));
