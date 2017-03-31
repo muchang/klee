@@ -451,19 +451,19 @@ bool CilInfoTable::coveredTarget(){
 }
 
 int CilInfoTable::isCutpoint(const llvm::Instruction* inst) {
-	if (target->status == UnReach) {
+    if (target->status == UnReach) {
 		if (target->def.inst == inst) return 1;
 		// for(std::vector<Cutpoint>::iterator cp = target->def.cutpoints.begin(); cp != target->def.cutpoints.end(); ++cp) {
         // 	if (cp->inst == inst) return 1;
     	// }
-		if(target->def.cp_index->inst == inst) return 1;
+		if((target->def.cp_index != target->def.cutpoints.end()) && (target->def.cp_index->inst == inst)) return 1;
 	}
 	else if (target->status == ReachDef) {
 		if (target->use.inst == inst) return 1;
 		// for(std::vector<Cutpoint>::iterator cp = target->use.cutpoints.begin(); cp != target->use.cutpoints.end(); ++cp) {
 		// 	if (cp->inst == inst) return 1;
 		// }
-		if(target->use.cp_index->inst == inst) return 1;
+		if((target->use.cp_index != target->use.cutpoints.end()) && (target->use.cp_index->inst == inst)) return 1;
 	}
 	return INT_MAX;
 }
