@@ -39,6 +39,7 @@ namespace klee {
   enum DupairStatus {
     UnReach,
     ReachDef,
+    ReachCp,
     Covered
   };
 
@@ -112,6 +113,7 @@ namespace klee {
 	  std::vector<DefUsePair> defUseList;
     std::vector<DefUsePair>::iterator target;
     std::string cilinfofile;
+    bool needCompute;
 
   public:
 	  CilInfoTable(std::string, llvm::Module *);
@@ -128,6 +130,7 @@ namespace klee {
     int isCutpoint(const llvm::Instruction* inst); 
     int isDefUse(const llvm::Instruction* inst);
     bool setNodeInstruction(int func_id, int stmt_id, int branch_choice, int stmt_line, llvm::Instruction *inst);
+    bool shouldCompute();  
   };
 
 }

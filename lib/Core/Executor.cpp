@@ -943,7 +943,6 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
       terminateStateEarly(*falseState, "max-depth exceeded.");
       return StatePair(0, 0);
     }
-
     return StatePair(trueState, falseState);
   }
 }

@@ -696,6 +696,7 @@ ExecutionState &SDGSSearcher::selectState() {
       ie = states.end(); it != ie; ++it) {
     ExecutionState* es = *it;
     int eval = computeMinDistToUncovered(es->pc,es->stack.back().minDistToUncoveredOnReturn) - es->weight;
+    llvm::errs() << eval << "\n";
     if(candidate == NULL || eval < maxEval ){
       candidate = es;
       maxEval = eval;
@@ -743,17 +744,30 @@ DataflowSearcher::~DataflowSearcher(){
 }
 
 ExecutionState &DataflowSearcher::selectState() {
+  //int k=0;
   ExecutionState* candidate = NULL;
   bool flag = false;
+  int max = 0;
+
+  if(executor.kmodule->dfinfos->shouldCompute()) 
+      executor.statsTracker->computeReachableDefUsePair(1);
   for (std::vector<ExecutionState*>::iterator it = states.begin(),
              ie = states.end(); it != ie; ++it) {
+      
       ExecutionState* es = *it;
+      //if(es->weight == 12345) llvm::errs() << "list node:" << *(es->pc->inst) << "\n";
       int evaluate = executor.kmodule->dfinfos->evaluate(es);
-      if (evaluate != 0)
+      //if (evaluate != 0 ) llvm::errs() << "cutpoint" << *(es->pc->inst) << "\n";
+      if (evaluate != 0){
+        
         flag = true;
-      es->weight += evaluate;
-      if(candidate == NULL || es->weight > candidate->weight)
+      }
+      //es->weight += evaluate;
+      //if(candidate == NULL || es->weight > candidate->weight)
+      if(candidate == NULL || evaluate > max){
+        max = evaluate;
         candidate = es;
+      }
       // if(candidate == NULL)
       //   candidate = es;
       // else if (es->weight > candidate->weight) {
@@ -763,23 +777,39 @@ ExecutionState &DataflowSearcher::selectState() {
       // else if (es->weight < candidate->weight)
       //   flag = true;
   }
+  //llvm::errs() << "max" << max << "\n";
   //use min-distance method if there no cutpoint to be selected
   if(flag == false) {
     candidate = NULL;
-    int maxEval = 0;
-    executor.statsTracker->computeReachableDefUsePair(1);
+    double minEval = 0.0;
     for (std::vector<ExecutionState*>::iterator it = states.begin(),
             ie = states.end(); it != ie; ++it) {
+      
       ExecutionState* es = *it;
-      int eval = computeMinDistToUncovered(es->pc,es->stack.back().minDistToUncoveredOnReturn);
-      if(candidate == NULL || eval < maxEval){
+      uint64_t md2u = computeMinDistToUncovered(es->pc,es->stack.back().minDistToUncoveredOnReturn);
+      double invMD2U = 1. / (md2u ? md2u : 10000);
+      double invCovNew = 0.0;
+      if (es->instsSinceCovNew)
+        invCovNew = 1. / std::max(1, (int) es->instsSinceCovNew);
+      double eval = (invCovNew * invCovNew + invMD2U * invMD2U);
+      // if(md2u == 2) {
+      //   //k=1;
+      //   //llvm::errs() << "es:" <<*(es->pc->inst) << "\n" ;
+      //   es->weight = 12345;
+      // }
+      //llvm::errs() << eval << "\n";
+      if(candidate == NULL || eval > minEval){
         candidate = es;
-        maxEval = eval;
+        minEval = eval;
       } 
     }
   }
-  if(candidate != NULL)
+ 
+  if(candidate != NULL){
+    //if(k==1) llvm::errs() << "candidate:" << *(candidate->pc->inst) << "\n";
+    //if(k==1) llvm::errs() << *(candidate->pc->inst->getParent()) << "\n";
     return *candidate;
+  }
   else  
     return *states.back();
 }

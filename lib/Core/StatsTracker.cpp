@@ -624,7 +624,13 @@ uint64_t klee::computeMinDistToUncovered(const KInstruction *ki,
                                                ki->info->id);
     uint64_t distToReturn = sm.getIndexedValue(stats::minDistToReturn,
                                                ki->info->id);
-
+    if(minDistLocal == 1) {
+      llvm::errs() << "closer:" << *(ki->inst) << "\n"; 
+      llvm::errs() << "distToReturn:" << distToReturn << "\n"; 
+      llvm::errs() << "minDistAtRA:" << minDistAtRA << "\n";
+      llvm::errs() << "min:" <<  std::min(minDistLocal, distToReturn + minDistAtRA) << "\n";
+      llvm::errs() << "distToReturn + minDistAtRA:" << distToReturn+minDistAtRA << "\n";
+    }
     if (distToReturn==0) { // return unreachable, best is local
       return minDistLocal;
     } else if (!minDistLocal) { // no local reachable
@@ -784,6 +790,7 @@ void StatsTracker::computeReachableUncovered() {
            it != ie; ++it) {
         unsigned id = infos.getInfo(it).id;
         instructions.push_back(&*it);
+        std::cerr << "uncoveredInstructions:"<<sm.getIndexedValue(stats::uncoveredInstructions, id) << "\n";
         sm.setIndexedValue(stats::minDistToUncovered, 
                            id, 
                            sm.getIndexedValue(stats::uncoveredInstructions, id));
@@ -1098,7 +1105,12 @@ void StatsTracker::computeReachableDefUsePair(int mode) {
           }
         }
       }
-
+      // if(best == 1) {
+      //   llvm::errs() << "target:" << *inst << "\n";
+      //   BasicBlock *bb = inst->getParent();
+      //   llvm::errs() << "parent:" << *bb << "\n";
+      // }
+      // if(best == 2) llvm::errs() << "close:" << *inst << "\n";
       if (best != cur) {
         sm.setIndexedValue(stats::minDistToUncovered, 
                            infos.getInfo(inst).id, 

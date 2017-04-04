@@ -35,10 +35,6 @@ void Point::read (std::ifstream& fin) {
 			Cutpoint cutpoint(*it);
 			cutpoints.push_back(cutpoint);
 		}
-		cp_index = cutpoints.begin();
-	}
-	else {
-		cp_index = cutpoints.end();
 	}
 }
 
@@ -208,6 +204,7 @@ CilInfoTable::~CilInfoTable() {
 CilInfoTable::CilInfoTable (std::string cilInfoFile, llvm::Module* module) {
 	std::ifstream fin(cilInfoFile.c_str());
 	cilinfofile = cilInfoFile;
+	needCompute = false;
 	//Read def-use pairs from the file defined by def-use-file command line option.
 	while(1){
 		DefUsePair dupair;
@@ -286,15 +283,23 @@ bool Node::equals (int func_id, int stmt_id, int stmt_line) {
 }
 
 DupairStatus DefUsePair::update(const ExecutionState &state, const KInstruction *kinstruction) {
-	if(def.cp_index != def.cutpoints.end() && def.cp_index->equals(state.pc)) {
-		llvm::errs() << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
-		llvm::errs()<<*(kinstruction->inst)<< "\n"; 
+	//llvm::errs() << "def cutpoint" << (*def.cp_index->inst) << "\n";
+	DupairStatus ret = UnReach;
+	if(def.cp_index != def.cutpoints.end() && def.cp_index->equals(kinstruction)) {
+		// llvm::errs() << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^1\n";
+		// llvm::errs()<<*(def.cp_index->inst)<< "\n"; 
+		// llvm::errs()<<*(kinstruction->inst)<< "\n"; 
+		def.cp_index->ptreeNodes.push_back(state.ptreeNode);
 		def.cp_index++;
+		ret = ReachCp;
 	}
-	if(use.cp_index != use.cutpoints.end() && use.cp_index->equals(state.pc)) {
-		llvm::errs() << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n";
-		llvm::errs()<<*(kinstruction->inst)<< "\n"; 
+	if(use.cp_index != use.cutpoints.end() && use.cp_index->equals(kinstruction)) {
+		// llvm::errs() << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^2\n";
+		// llvm::errs()<<*(use.cp_index->inst)<< "\n"; 
+		// llvm::errs()<<*(kinstruction->inst)<< "\n"; 
+		use.cp_index->ptreeNodes.push_back(state.ptreeNode);
 		use.cp_index++;
+		ret = ReachCp;
 	}
     if(def.equals(kinstruction) && status != Covered){
         def.ptreeNodes.push_back(state.ptreeNode);
@@ -316,7 +321,7 @@ DupairStatus DefUsePair::update(const ExecutionState &state, const KInstruction 
 			}
 		}
 	}
-	return UnReach;
+	return ret;
 }
 
 void DefUsePair::addRedefineCandidate(const ExecutionState &state) {
@@ -324,9 +329,10 @@ void DefUsePair::addRedefineCandidate(const ExecutionState &state) {
 }
 
 bool CilInfoTable::update(ExecutionState &state, KInstruction *kinstruction) {
-	for(std::vector<DefUsePair>::iterator it = defUseList.begin(); it != defUseList.end(); ++it){
-		it->update(state, kinstruction);
-	}
+	// for(std::vector<DefUsePair>::iterator it = defUseList.begin(); it != defUseList.end(); ++it){
+	// 	it->update(state, kinstruction);
+	// }
+	if(target->update(state, kinstruction) == ReachCp) needCompute = true;
     for(std::vector<DefUsePair>::iterator it = defUseList.begin(); it != defUseList.end(); ++it)
 		if(it->def.equals(kinstruction)) 
 			 for(std::vector<DefUsePair>::iterator it2 = defUseList.begin(); it2 != defUseList.end(); ++it2)
@@ -382,7 +388,6 @@ int Cutpoint::evaluate(const ExecutionState *es){
 			if(es->ptreeNode->isPosterityOf(*it)){
 				return -2;
 			}	
-	    ptreeNodes.push_back(es->ptreeNode);
 		return 10;
 	}
     return 0;
@@ -391,8 +396,9 @@ int Cutpoint::evaluate(const ExecutionState *es){
 
 int klee::Use::evaluate(const ExecutionState *es){
     int value = 0;
-    if(equals(es->pc))
-        value += 10;
+    if(equals(es->pc)){
+		value += 10;
+	}
     // std::vector<Cutpoint>::iterator cp;
     // for(cp = cutpoints.begin(); cp != cutpoints.end(); ++cp) {
     //     value += cp->evaluate(es);
@@ -421,8 +427,12 @@ int DefUsePair::evaluate(const ExecutionState *es){
 	int value = 0;
 	if(status == UnReach)
     	value = def.evaluate(es);
-	if(status == ReachDef)
-    	value += use.evaluate(es);
+	if(status == ReachDef){
+		for(std::vector<PTreeNode*>::iterator it = def.ptreeNodes.begin(); it != def.ptreeNodes.end(); ++it) {
+			if(es->ptreeNode->isPosterityOf(*it))
+				value += use.evaluate(es);
+		}
+	}
     return value;
 }
 
@@ -438,8 +448,19 @@ bool CilInfoTable::setTarget(unsigned int dupairID) {
 		if (std::strtoul (target->dua_id.c_str(), NULL, 0) == dupairID){
 			if(target->status == Covered) 
 				return false;
-			else
-				return true;
+			else {
+				target->def.cp_index = target->def.cutpoints.begin();
+				target->use.cp_index = target->use.cutpoints.begin();
+				// for(std::vector<Cutpoint>::iterator cp = target->def.cutpoints.begin(); cp != target->def.cutpoints.end(); ++cp) {
+				// 		llvm::errs() << *(cp->inst) << "\n";
+				// }
+
+				// for(std::vector<Cutpoint>::iterator cp = target->use.cutpoints.begin(); cp != target->use.cutpoints.end(); ++cp) {
+				// 		llvm::errs() << *(cp->inst) << "\n";
+				// }
+				return true;	
+			}
+				
 		}
 	}
 	target = defUseList.begin();
@@ -452,14 +473,14 @@ bool CilInfoTable::coveredTarget(){
 
 int CilInfoTable::isCutpoint(const llvm::Instruction* inst) {
     if (target->status == UnReach) {
-		if (target->def.inst == inst) return 1;
+		// if ((target->def.cp_index == target->def.cutpoints.end()) && target->def.inst == inst) return 1;
 		// for(std::vector<Cutpoint>::iterator cp = target->def.cutpoints.begin(); cp != target->def.cutpoints.end(); ++cp) {
         // 	if (cp->inst == inst) return 1;
     	// }
 		if((target->def.cp_index != target->def.cutpoints.end()) && (target->def.cp_index->inst == inst)) return 1;
 	}
 	else if (target->status == ReachDef) {
-		if (target->use.inst == inst) return 1;
+		// if ((target->use.cp_index == target->use.cutpoints.end()) && target->use.inst == inst) return 1;
 		// for(std::vector<Cutpoint>::iterator cp = target->use.cutpoints.begin(); cp != target->use.cutpoints.end(); ++cp) {
 		// 	if (cp->inst == inst) return 1;
 		// }
@@ -479,4 +500,14 @@ int CilInfoTable::isDefUse(const llvm::Instruction* inst) {
 			return 1;
 	}
 	return INT_MAX;
+}
+
+bool CilInfoTable::shouldCompute() {
+	if(needCompute) {
+		needCompute = false;
+		return true;
+	}
+	else{
+		return false;
+	}
 }
