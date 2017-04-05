@@ -691,7 +691,8 @@ SDGSSearcher::~SDGSSearcher(){
 ExecutionState &SDGSSearcher::selectState() {
   ExecutionState* candidate = NULL;
   int maxEval = 0;
-  executor.statsTracker->computeReachableDefUsePair(2);
+  if(executor.kmodule->dfinfos->shouldCompute()) 
+      executor.statsTracker->computeReachableDefUsePair(2);
   for (std::vector<ExecutionState*>::iterator it = states.begin(),
       ie = states.end(); it != ie; ++it) {
     ExecutionState* es = *it;
@@ -738,6 +739,7 @@ void SDGSSearcher::update(ExecutionState *current,
 
 DataflowSearcher::DataflowSearcher(Executor &_executor)
 	  : executor(_executor) {
+    k = 0;
 }
 
 DataflowSearcher::~DataflowSearcher(){
@@ -782,6 +784,7 @@ ExecutionState &DataflowSearcher::selectState() {
   if(flag == false) {
     candidate = NULL;
     double minEval = 0.0;
+    k++;
     for (std::vector<ExecutionState*>::iterator it = states.begin(),
             ie = states.end(); it != ie; ++it) {
       
@@ -790,7 +793,7 @@ ExecutionState &DataflowSearcher::selectState() {
       double invMD2U = 1. / (md2u ? md2u : 10000);
       double invCovNew = 0.0;
       if (es->instsSinceCovNew)
-        invCovNew = 1. / std::max(1, (int) es->instsSinceCovNew);
+        invCovNew = 1. / std::max(1, (int) es->instsSinceCovNew - k/1000);
       double eval = (invCovNew * invCovNew + invMD2U * invMD2U);
       // if(md2u == 2) {
       //   //k=1;

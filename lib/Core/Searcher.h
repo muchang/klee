@@ -344,6 +344,7 @@ namespace klee {
   class DataflowSearcher : public Searcher {
 	  std::vector<ExecutionState*> states;
 	  Executor &executor;
+    int k;
 
 	  public:
 	  	 DataflowSearcher(Executor &executor);
