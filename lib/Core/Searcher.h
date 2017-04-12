@@ -342,21 +342,35 @@ namespace klee {
   };
 
   class DataflowSearcher : public Searcher {
-	  std::vector<ExecutionState*> states;
-	  Executor &executor;
-    int k;
+    public:
+      enum WeightType {
+        CPGS,
+        SDGS,
+        CPSD
+      };
+    private:
+	    DiscretePDF<ExecutionState*> *states;
+	    WeightType type;
+      Executor &executor;
+
+      double getWeight(ExecutionState*);
 
 	  public:
-	  	 DataflowSearcher(Executor &executor);
+	  	 DataflowSearcher(WeightType type, Executor &executor);
 	    ~DataflowSearcher();
 
 	    ExecutionState &selectState();
 	    void update(ExecutionState *current,
 	                  const std::set<ExecutionState*> &addedStates,
 	                  const std::set<ExecutionState*> &removedStates);
-	    bool empty() { return states.empty(); }
+	    bool empty();
 	    void printName(llvm::raw_ostream &os) {
-	        os << "DataflowSearcher\n";
+	        os << "DataflowSearcher::";
+          switch(type) {
+            case CPGS : os << "CPGS\n"; return;
+            case SDGS : os << "SDGS\n"; return;
+            case CPSD : os << "CPSD\n"; return;
+          }
 	    }
   };
 

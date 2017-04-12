@@ -145,20 +145,15 @@ Searcher *klee::constructUserSearcher(Executor &executor) {
   }
 
   if (UseDataflowSearcher) {
-    Searcher* dataflowsearch = new DataflowSearcher(executor);
-    std::vector<Searcher *> s;
-    s.push_back(dataflowsearch);
-    //s.push_back(getNewSearcher(Searcher::RandomPath, executor));
-    //s.push_back(getNewSearcher(Searcher::NURS_CovNew, executor));
-    searcher = new InterleavedSearcher(s);
+    searcher = new DataflowSearcher(DataflowSearcher::CPSD, executor);
   }
 
   if (UseDataflowSearcher && DisableCPGS){
-    searcher = new SDGSSearcher(executor);
+    searcher = new DataflowSearcher(DataflowSearcher::SDGS, executor);
   }
 
   if (UseDataflowSearcher && DisableSDGS){
-    searcher = new CPGSSearcher(executor);
+    searcher = new DataflowSearcher(DataflowSearcher::CPGS, executor);
   }
 
 

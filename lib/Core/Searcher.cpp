@@ -737,110 +737,76 @@ void SDGSSearcher::update(ExecutionState *current,
   }
 }
 
-DataflowSearcher::DataflowSearcher(Executor &_executor)
-	  : executor(_executor) {
-    k = 0;
+DataflowSearcher::DataflowSearcher(WeightType _type, Executor &_executor) 
+  : states(new DiscretePDF<ExecutionState*>()),
+    type(_type), 
+    executor(_executor) {
+  switch(_type){
+    case CPSD:
+    case CPGS:
+      executor.statsTracker->computeReachableDefUsePair(1);
+      break;
+    case SDGS:
+      executor.statsTracker->computeReachableDefUsePair(2);
+      break;
+    default:
+      break;
+  }
+  
 }
 
 DataflowSearcher::~DataflowSearcher(){
+  delete states;
 }
 
 ExecutionState &DataflowSearcher::selectState() {
-  //int k=0;
-  ExecutionState* candidate = NULL;
-  bool flag = false;
-  int max = 0;
+  return *states->choose(theRNG.getDoubleL());
+}
 
-  if(executor.kmodule->dfinfos->shouldCompute()) 
-      executor.statsTracker->computeReachableDefUsePair(1);
-  for (std::vector<ExecutionState*>::iterator it = states.begin(),
-             ie = states.end(); it != ie; ++it) {
-      
-      ExecutionState* es = *it;
-      //if(es->weight == 12345) llvm::errs() << "list node:" << *(es->pc->inst) << "\n";
-      int evaluate = executor.kmodule->dfinfos->evaluate(es);
-      //if (evaluate != 0 ) llvm::errs() << "cutpoint" << *(es->pc->inst) << "\n";
-      if (evaluate != 0){
-        
-        flag = true;
-      }
-      //es->weight += evaluate;
-      //if(candidate == NULL || es->weight > candidate->weight)
-      if(candidate == NULL || evaluate > max){
-        max = evaluate;
-        candidate = es;
-      }
-      // if(candidate == NULL)
-      //   candidate = es;
-      // else if (es->weight > candidate->weight) {
-      //   candidate = es;
-      //   flag = true;
-      // }
-      // else if (es->weight < candidate->weight)
-      //   flag = true;
-  }
-  //llvm::errs() << "max" << max << "\n";
-  //use min-distance method if there no cutpoint to be selected
-  if(flag == false) {
-    candidate = NULL;
-    double minEval = 0.0;
-    k++;
-    for (std::vector<ExecutionState*>::iterator it = states.begin(),
-            ie = states.end(); it != ie; ++it) {
-      
-      ExecutionState* es = *it;
-      uint64_t md2u = computeMinDistToUncovered(es->pc,es->stack.back().minDistToUncoveredOnReturn);
-      double invMD2U = 1. / (md2u ? md2u : 10000);
-      double invCovNew = 0.0;
-      if (es->instsSinceCovNew)
-        invCovNew = 1. / std::max(1, (int) es->instsSinceCovNew - k/1000);
-      double eval = (invCovNew * invCovNew + invMD2U * invMD2U);
-      // if(md2u == 2) {
-      //   //k=1;
-      //   //llvm::errs() << "es:" <<*(es->pc->inst) << "\n" ;
-      //   es->weight = 12345;
-      // }
-      //llvm::errs() << eval << "\n";
-      if(candidate == NULL || eval > minEval){
-        candidate = es;
-        minEval = eval;
-      } 
+double DataflowSearcher::getWeight(ExecutionState *es) {
+  switch(type) {
+    case CPGS: {
+      int eval = executor.kmodule->dfinfos->evaluate(es);
+      if (eval != 0) 
+        executor.statsTracker->computeReachableDefUsePair(1);
+      return eval;
     }
+    case SDGS: {
+       uint64_t md2u = computeMinDistToUncovered(es->pc,es->stack.back().minDistToUncoveredOnReturn);
+       double invMD2U = 1. / (md2u ? md2u : 10000);
+       return invMD2U*invMD2U;
+    }
+    case CPSD: {
+       uint64_t md2u = computeMinDistToUncovered(es->pc,es->stack.back().minDistToUncoveredOnReturn);
+       double invMD2U = 1. / (md2u ? md2u : 10000);
+       double invCovNew = 0;
+       if (es->instsSinceCovNew)
+        invCovNew = 1. / std::max(1, (int) es->instsSinceCovNew - 1000);
+       return (invCovNew * invCovNew + invMD2U * invMD2U);
+    }
+    default:
+      return es->weight;
   }
- 
-  if(candidate != NULL){
-    //if(k==1) llvm::errs() << "candidate:" << *(candidate->pc->inst) << "\n";
-    //if(k==1) llvm::errs() << *(candidate->pc->inst->getParent()) << "\n";
-    return *candidate;
-  }
-  else  
-    return *states.back();
 }
 
 void DataflowSearcher::update(ExecutionState *current,
                          const std::set<ExecutionState*> &addedStates,
                          const std::set<ExecutionState*> &removedStates) {
-  states.insert(states.end(),
-                addedStates.begin(),
-                addedStates.end());
+  if (current  && !removedStates.count(current))
+    states->update(current, getWeight(current));
+
+  for (std::set<ExecutionState*>::const_iterator it = addedStates.begin(),
+         ie = addedStates.end(); it != ie; ++it) {
+    ExecutionState *es = *it;
+    states->insert(es, getWeight(es));
+  }
+
   for (std::set<ExecutionState*>::const_iterator it = removedStates.begin(),
          ie = removedStates.end(); it != ie; ++it) {
-    ExecutionState *es = *it;
-    if (es == states.back()) {
-      states.pop_back();
-    } else {
-      bool ok = false;
-
-      for (std::vector<ExecutionState*>::iterator it = states.begin(),
-             ie = states.end(); it != ie; ++it) {
-        if (es==*it) {
-          states.erase(it);
-          ok = true;
-          break;
-        }
-      }
-
-      assert(ok && "invalid state removed");
-    }
+    states->remove(*it);
   }
+}
+
+bool DataflowSearcher::empty() {
+  return states->empty();
 }
