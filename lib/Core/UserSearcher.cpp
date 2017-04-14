@@ -145,7 +145,12 @@ Searcher *klee::constructUserSearcher(Executor &executor) {
   }
 
   if (UseDataflowSearcher) {
-    searcher = new DataflowSearcher(DataflowSearcher::CPSD, executor);
+    std::vector<Searcher *> s;
+    searcher  = new DataflowSearcher(DataflowSearcher::CPSD, executor);
+    s.push_back(searcher);
+    searcher  = new RandomPathSearcher(executor);
+    s.push_back(searcher);
+    searcher = new InterleavedSearcher(s);
   }
 
   if (UseDataflowSearcher && DisableCPGS){

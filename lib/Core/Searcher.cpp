@@ -777,8 +777,15 @@ double DataflowSearcher::getWeight(ExecutionState *es) {
        return invMD2U*invMD2U;
     }
     case CPSD: {
+       int eval = executor.kmodule->dfinfos->evaluate(es);
+       if (eval != 0) {
+         
+         return eval;
+       }
+       if(executor.kmodule->dfinfos->shouldCompute())
+          executor.statsTracker->computeReachableDefUsePair(1);
        uint64_t md2u = computeMinDistToUncovered(es->pc,es->stack.back().minDistToUncoveredOnReturn);
-       double invMD2U = 1. / (md2u ? md2u : 10000);
+       double invMD2U = 1. / (md2u ? md2u : INT_MAX);
        double invCovNew = 0;
        if (es->instsSinceCovNew)
         invCovNew = 1. / std::max(1, (int) es->instsSinceCovNew - 1000);
