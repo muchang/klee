@@ -341,17 +341,17 @@ bool CilInfoTable::update(ExecutionState &state, KInstruction *kinstruction) {
 						if(state.ptreeNode->isPosterityOf(*defNode) && !it2->def.equals(kinstruction))
 							it2->addRedefineCandidate(state);
 
-	for(std::vector<DefUsePair>::iterator it = defUseList.begin(); it != defUseList.end(); ++it) {
-        if (it != target &&
-		    target->status == ReachDef &&
-			it->def.equals(kinstruction) && 
-			it->def.withSameVariableAs(target->def)) {
-			for(std::vector<PTreeNode*>::iterator it = target->def.ptreeNodes.begin(); it != target->def.ptreeNodes.end(); ++it) {
-				if(state.ptreeNode->isPosterityOf(*it))
-					return false;
-			}
-		}
-    }
+	// for(std::vector<DefUsePair>::iterator it = defUseList.begin(); it != defUseList.end(); ++it) {
+    //     if (it != target &&
+	// 	    target->status == ReachDef &&
+	// 		it->def.equals(kinstruction) && 
+	// 		it->def.withSameVariableAs(target->def)) {
+	// 		for(std::vector<PTreeNode*>::iterator it = target->def.ptreeNodes.begin(); it != target->def.ptreeNodes.end(); ++it) {
+	// 			if(state.ptreeNode->isPosterityOf(*it))
+	// 				return false;
+	// 		}
+	// 	}
+    // }
 	return true;
 }
 //**************************************************************************************************
@@ -510,4 +510,16 @@ bool CilInfoTable::shouldCompute() {
 	else{
 		return false;
 	}
+}
+
+bool CilInfoTable::isRedefine(ExecutionState &state) {
+	for(std::vector<DefUsePair>::iterator it = defUseList.begin(); it != defUseList.end(); ++it) 
+        if (it != target &&
+		    target->status == ReachDef &&
+			it->def.equals(state.pc) && 
+			it->def.withSameVariableAs(target->def))
+				for(std::vector<PTreeNode*>::iterator it = target->def.ptreeNodes.begin(); it != target->def.ptreeNodes.end(); ++it) 
+					if(state.ptreeNode->isPosterityOf(*it))
+						return true;
+	return false;
 }

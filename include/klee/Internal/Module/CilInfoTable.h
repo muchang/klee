@@ -129,6 +129,7 @@ namespace klee {
     bool coveredTarget();
     int isCutpoint(const llvm::Instruction* inst); 
     int isDefUse(const llvm::Instruction* inst);
+    bool isRedefine(ExecutionState &state);
     bool setNodeInstruction(int func_id, int stmt_id, int branch_choice, int stmt_line, llvm::Instruction *inst);
     bool shouldCompute();  
   };

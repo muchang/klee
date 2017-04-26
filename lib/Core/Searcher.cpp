@@ -53,6 +53,11 @@ using namespace llvm;
 namespace {
   cl::opt<bool>
   DebugLogMerge("debug-log-merge");
+
+  cl::opt<bool>
+  DisablePruning("disable-Pruning",
+           cl::desc("disable Pruning in dataflow testing."),
+           cl::init(0));
 }
 
 namespace klee {
@@ -766,29 +771,27 @@ ExecutionState &DataflowSearcher::selectState() {
 double DataflowSearcher::getWeight(ExecutionState *es) {
   switch(type) {
     case CPGS: {
+      if(!DisablePruning && executor.kmodule->dfinfos->isRedefine(*es)) return -1;
       int eval = executor.kmodule->dfinfos->evaluate(es);
-      if (eval != 0) 
-        executor.statsTracker->computeReachableDefUsePair(1);
       return eval;
     }
     case SDGS: {
+       if(!DisablePruning && executor.kmodule->dfinfos->isRedefine(*es)) return -1;
        uint64_t md2u = computeMinDistToUncovered(es->pc,es->stack.back().minDistToUncoveredOnReturn);
        double invMD2U = 1. / (md2u ? md2u : 10000);
        return invMD2U*invMD2U;
     }
     case CPSD: {
        int eval = executor.kmodule->dfinfos->evaluate(es);
-       if (eval != 0) {
-         
-         return eval;
-       }
+       if (eval != 0) return eval;
+       if(!DisablePruning && executor.kmodule->dfinfos->isRedefine(*es)) return -1;
        if(executor.kmodule->dfinfos->shouldCompute())
           executor.statsTracker->computeReachableDefUsePair(1);
        uint64_t md2u = computeMinDistToUncovered(es->pc,es->stack.back().minDistToUncoveredOnReturn);
        double invMD2U = 1. / (md2u ? md2u : INT_MAX);
        double invCovNew = 0;
        if (es->instsSinceCovNew)
-        invCovNew = 1. / std::max(1, (int) es->instsSinceCovNew - 1000);
+        invCovNew = 1. / std::max(1, (int) es->instsSinceCovNew - (int)theRNG.getInt32()%1000);
        return (invCovNew * invCovNew + invMD2U * invMD2U);
     }
     default:

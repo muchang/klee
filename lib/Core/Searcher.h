@@ -80,7 +80,7 @@ namespace klee {
       NURS_QC,
       DF_CPGS,
       DF_SDGS,
-      DF_CPSD,
+      DF_CPSD
     };
   };
 
