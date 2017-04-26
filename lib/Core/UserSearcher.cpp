@@ -34,6 +34,9 @@ namespace {
 			clEnumValN(Searcher::NURS_ICnt, "nurs:icnt", "use NURS with Instr-Count"),
 			clEnumValN(Searcher::NURS_CPICnt, "nurs:cpicnt", "use NURS with CallPath-Instr-Count"),
 			clEnumValN(Searcher::NURS_QC, "nurs:qc", "use NURS with Query-Cost"),
+      clEnumValN(Searcher::DF_CPGS,"df:cpgs", "use dataflow searcher with Cutpoint Guided"),
+      clEnumValN(Searcher::DF_SDGS,"df:sdgs", "use dataflow searcher with Shortest Distance Guided"),
+      clEnumValN(Searcher::DF_CPSD,"df:cpsd", "use dataflow searcher with Combine Cutpoint & Shortest Distance Guided"),
 			clEnumValEnd));
 
   cl::opt<bool>
@@ -63,20 +66,6 @@ namespace {
   cl::opt<bool>
   UseBumpMerge("use-bump-merge", 
            cl::desc("Enable support for klee_merge() (extra experimental)"));
-  
-  cl::opt<bool>
-  UseDataflowSearcher("use-dataflow-search", 
-           cl::desc("Use SDGS+CPGS+Pruning strategies for Dataflow Testing."));
-
-  cl::opt<bool>
-  DisableCPGS("disable-CPGS",
-           cl::desc("disable CPGSSearcher in Dataflow Testing."),
-           cl::init(0));
-  
-  cl::opt<bool>
-  DisableSDGS("disable-SDGS",
-           cl::desc("disable SDGSSearcher in dataflow testing."),
-           cl::init(0));
 }
 
 
@@ -101,6 +90,9 @@ Searcher *getNewSearcher(Searcher::CoreSearchType type, Executor &executor) {
   case Searcher::NURS_ICnt: searcher = new WeightedRandomSearcher(WeightedRandomSearcher::InstCount); break;
   case Searcher::NURS_CPICnt: searcher = new WeightedRandomSearcher(WeightedRandomSearcher::CPInstCount); break;
   case Searcher::NURS_QC: searcher = new WeightedRandomSearcher(WeightedRandomSearcher::QueryCost); break;
+  case Searcher::DF_CPGS: searcher = new DataflowSearcher(DataflowSearcher::CPGS, executor); break;
+  case Searcher::DF_SDGS: searcher = new DataflowSearcher(DataflowSearcher::SDGS, executor); break;
+  case Searcher::DF_CPSD: searcher = new DataflowSearcher(DataflowSearcher::CPSD, executor); break;
   }
 
   return searcher;
@@ -143,24 +135,6 @@ Searcher *klee::constructUserSearcher(Executor &executor) {
   if (UseIterativeDeepeningTimeSearch) {
     searcher = new IterativeDeepeningTimeSearcher(searcher);
   }
-
-  if (UseDataflowSearcher) {
-    std::vector<Searcher *> s;
-    searcher  = new DataflowSearcher(DataflowSearcher::CPSD, executor);
-    s.push_back(searcher);
-    searcher  = new RandomPathSearcher(executor);
-    s.push_back(searcher);
-    searcher = new InterleavedSearcher(s);
-  }
-
-  if (UseDataflowSearcher && DisableCPGS){
-    searcher = new DataflowSearcher(DataflowSearcher::SDGS, executor);
-  }
-
-  if (UseDataflowSearcher && DisableSDGS){
-    searcher = new DataflowSearcher(DataflowSearcher::CPGS, executor);
-  }
-
 
   llvm::raw_ostream &os = executor.getHandler().getInfoStream();
 

@@ -77,7 +77,10 @@ namespace klee {
       NURS_Depth,
       NURS_ICnt,
       NURS_CPICnt,
-      NURS_QC
+      NURS_QC,
+      DF_CPGS,
+      DF_SDGS,
+      DF_CPSD,
     };
   };
 
