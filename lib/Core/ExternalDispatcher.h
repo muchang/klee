@@ -10,41 +10,40 @@
 #ifndef KLEE_EXTERNALDISPATCHER_H
 #define KLEE_EXTERNALDISPATCHER_H
 
+#include "klee/Config/Version.h"
+
 #include <map>
-#include <string>
+#include <memory>
 #include <stdint.h>
+#include <string>
 
 namespace llvm {
-  class ExecutionEngine;
-  class Instruction;
-  class Function;
-  class FunctionType;
-  class Module;
+class Instruction;
+class LLVMContext;
+class Function;
 }
 
 namespace klee {
-  class ExternalDispatcher {
-  private:
-    typedef std::map<const llvm::Instruction*,llvm::Function*> dispatchers_ty;
-    dispatchers_ty dispatchers;
-    llvm::Module *dispatchModule;
-    llvm::ExecutionEngine *executionEngine;
-    std::map<std::string, void*> preboundFunctions;
-    
-    llvm::Function *createDispatcher(llvm::Function *f, llvm::Instruction *i);
-    bool runProtectedCall(llvm::Function *f, uint64_t *args);
-    
-  public:
-    ExternalDispatcher();
-    ~ExternalDispatcher();
+class ExternalDispatcherImpl;
+class ExternalDispatcher {
+private:
+  ExternalDispatcherImpl *impl;
 
-    /* Call the given function using the parameter passing convention of
-     * ci with arguments in args[1], args[2], ... and writing the result
-     * into args[0].
-     */
-    bool executeCall(llvm::Function *function, llvm::Instruction *i, uint64_t *args);
-    void *resolveSymbol(const std::string &name);
-  };  
+public:
+  ExternalDispatcher(llvm::LLVMContext &ctx);
+  ~ExternalDispatcher();
+
+  /* Call the given function using the parameter passing convention of
+   * ci with arguments in args[1], args[2], ... and writing the result
+   * into args[0].
+   */
+  bool executeCall(llvm::Function *function, llvm::Instruction *i,
+                   uint64_t *args);
+  void *resolveSymbol(const std::string &name);
+
+  int getLastErrno();
+  void setLastErrno(int newErrno);
+};
 }
 
 #endif

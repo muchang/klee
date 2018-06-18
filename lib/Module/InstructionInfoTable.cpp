@@ -10,17 +10,10 @@
 #include "klee/Internal/Module/InstructionInfoTable.h"
 #include "klee/Config/Version.h"
 
-#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 3)
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
-#else
-#include "llvm/Function.h"
-#include "llvm/Instructions.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/Module.h"
-#endif
 
 # if LLVM_VERSION_CODE < LLVM_VERSION(3,5)
 #include "llvm/Assembly/AssemblyAnnotationWriter.h"
@@ -37,10 +30,8 @@
 
 #if LLVM_VERSION_CODE >= LLVM_VERSION(3,5)
 #include "llvm/IR/DebugInfo.h"
-#elif LLVM_VERSION_CODE >= LLVM_VERSION(3, 2)
-#include "llvm/DebugInfo.h"
 #else
-#include "llvm/Analysis/DebugInfo.h"
+#include "llvm/DebugInfo.h"
 #endif
 
 #include "llvm/Analysis/ValueTracking.h"
@@ -87,7 +78,7 @@ static void buildInstructionToLineMap(Module *m,
   }
 }
 
-static std::string getDSPIPath(DILocation Loc) {
+static std::string getDSPIPath(const DILocation &Loc) {
   std::string dir = Loc.getDirectory();
   std::string file = Loc.getFilename();
   if (dir.empty() || file[0] == '/') {
@@ -103,9 +94,15 @@ bool InstructionInfoTable::getInstructionDebugInfo(const llvm::Instruction *I,
                                                    const std::string *&File,
                                                    unsigned &Line) {
   if (MDNode *N = I->getMetadata("dbg")) {
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 7)
+    DILocation *Loc = cast<DILocation>(N);
+    File = internString(getDSPIPath(*Loc));
+    Line = Loc->getLine();
+#else
     DILocation Loc(N);
     File = internString(getDSPIPath(Loc));
     Line = Loc.getLineNumber();
+#endif
     return true;
   }
 
@@ -120,6 +117,7 @@ InstructionInfoTable::InstructionInfoTable(Module *m)
 
   for (Module::iterator fnIt = m->begin(), fn_ie = m->end(); 
        fnIt != fn_ie; ++fnIt) {
+    Function *fn = &*fnIt;
 
     // We want to ensure that as all instructions have source information, if
     // available. Clang sometimes will not write out debug information on the
@@ -128,15 +126,14 @@ InstructionInfoTable::InstructionInfoTable(Module *m)
     // if any.
     const std::string *initialFile = &dummyString;
     unsigned initialLine = 0;
-    for (inst_iterator it = inst_begin(fnIt), ie = inst_end(fnIt); it != ie;
-         ++it) {
+    for (inst_iterator it = inst_begin(fn), ie = inst_end(fn); it != ie; ++it) {
       if (getInstructionDebugInfo(&*it, initialFile, initialLine))
         break;
     }
 
     const std::string *file = initialFile;
     unsigned line = initialLine;
-    for (inst_iterator it = inst_begin(fnIt), ie = inst_end(fnIt); it != ie;
+    for (inst_iterator it = inst_begin(fn), ie = inst_end(fn); it != ie;
         ++it) {
       Instruction *instr = &*it;
       unsigned assemblyLine = lineTable[instr];
@@ -193,6 +190,6 @@ InstructionInfoTable::getFunctionInfo(const Function *f) const {
     // and construct a test case for it if it does, though.
     return dummyInfo;
   } else {
-    return getInfo(f->begin()->begin());
+    return getInfo(&*(f->begin()->begin()));
   }
 }

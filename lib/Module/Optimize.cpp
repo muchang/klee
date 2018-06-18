@@ -16,23 +16,18 @@
 //===----------------------------------------------------------------------===//
 
 #include "klee/Config/Version.h"
-#include "llvm/PassManager.h"
+#include "klee/Internal/Module/LLVMPassManager.h"
+
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Analysis/LoopPass.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/DynamicLibrary.h"
-
-#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 3)
 #include "llvm/IR/Module.h"
 #include "llvm/IR/DataLayout.h"
-#else
-#include "llvm/Module.h"
-#if LLVM_VERSION_CODE <= LLVM_VERSION(3, 1)
-#include "llvm/Target/TargetData.h"
-#else
-#include "llvm/DataLayout.h"
-#endif
-#endif
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/DynamicLibrary.h"
+#include "llvm/Support/PluginLoader.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Transforms/IPO.h"
+#include "llvm/Transforms/Scalar.h"
 
 #if LLVM_VERSION_CODE >= LLVM_VERSION(3, 5)
 #include "llvm/IR/Verifier.h"
@@ -40,10 +35,6 @@
 #include "llvm/Analysis/Verifier.h"
 #endif
 
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Transforms/IPO.h"
-#include "llvm/Transforms/Scalar.h"
-#include "llvm/Support/PluginLoader.h"
 using namespace llvm;
 
 // Don't verify at the end
@@ -80,7 +71,7 @@ static cl::alias A1("S", cl::desc("Alias for --strip-debug"),
 
 // A utility function that adds a pass to the pass manager but will also add
 // a verifier pass after if we're supposed to verify.
-static inline void addPass(PassManager &PM, Pass *P) {
+static inline void addPass(klee::LegacyLLVMPassManagerTy &PM, Pass *P) {
   // Add the pass to the pass manager...
   PM.add(P);
 
@@ -92,12 +83,8 @@ static inline void addPass(PassManager &PM, Pass *P) {
 namespace llvm {
 
 
-static void AddStandardCompilePasses(PassManager &PM) {
+static void AddStandardCompilePasses(klee::LegacyLLVMPassManagerTy &PM) {
   PM.add(createVerifierPass());                  // Verify that input is correct
-
-#if LLVM_VERSION_CODE < LLVM_VERSION(3, 0)
-  addPass(PM, createLowerSetJmpPass());          // Lower llvm.setjmp/.longjmp
-#endif
 
   // If the -strip-debug command line option was specified, do it.
   if (StripDebug)
@@ -121,9 +108,6 @@ static void AddStandardCompilePasses(PassManager &PM) {
     addPass(PM, createFunctionInliningPass());   // Inline small functions
   addPass(PM, createArgumentPromotionPass());    // Scalarize uninlined fn args
 
-#if LLVM_VERSION_CODE < LLVM_VERSION(3, 4)
-  addPass(PM, createSimplifyLibCallsPass());     // Library Call Optimizations
-#endif
   addPass(PM, createInstructionCombiningPass()); // Cleanup for scalarrepl.
   addPass(PM, createJumpThreadingPass());        // Thread jumps.
   addPass(PM, createCFGSimplificationPass());    // Merge & remove BBs
@@ -154,33 +138,32 @@ static void AddStandardCompilePasses(PassManager &PM) {
   addPass(PM, createAggressiveDCEPass());        // Delete dead instructions
   addPass(PM, createCFGSimplificationPass());    // Merge & remove BBs
   addPass(PM, createStripDeadPrototypesPass());  // Get rid of dead prototypes
-#if LLVM_VERSION_CODE < LLVM_VERSION(3, 0)
-  addPass(PM, createDeadTypeEliminationPass());  // Eliminate dead types
-#endif
   addPass(PM, createConstantMergePass());        // Merge dup global constants
 }
 
 /// Optimize - Perform link time optimizations. This will run the scalar
 /// optimizations, any loaded plugin-optimization modules, and then the
 /// inter-procedural optimizations if applicable.
-void Optimize(Module* M) {
+void Optimize(Module *M, const std::string &EntryPoint) {
 
   // Instantiate the pass manager to organize the passes.
-  PassManager Passes;
+  klee::LegacyLLVMPassManagerTy Passes;
 
   // If we're verifying, start off with a verification pass.
   if (VerifyEach)
     Passes.add(createVerifierPass());
 
-#if LLVM_VERSION_CODE <= LLVM_VERSION(3, 1)
-  // Add an appropriate TargetData instance for this module...
-  addPass(Passes, new TargetData(M));
-#elif LLVM_VERSION_CODE < LLVM_VERSION(3, 5)
   // Add an appropriate DataLayout instance for this module...
-  addPass(Passes, new DataLayout(M));
-#else
-  // Add an appropriate DataLayout instance for this module...
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 7)
+  // LLVM 3.7+ doesn't have DataLayoutPass anymore.
+#elif LLVM_VERSION_CODE >= LLVM_VERSION(3, 6)
+  DataLayoutPass *dlpass = new DataLayoutPass();
+  dlpass->doInitialization(*M);
+  addPass(Passes, dlpass);
+#elif LLVM_VERSION_CODE >= LLVM_VERSION(3, 5)
   addPass(Passes, new DataLayoutPass(M));
+#else
+  addPass(Passes, new DataLayout(M));
 #endif
 
   // DWD - Run the opt standard pass list as well.
@@ -191,11 +174,8 @@ void Optimize(Module* M) {
     // for a main function.  If main is defined, mark all other functions
     // internal.
     if (!DisableInternalize) {
-#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 2)
-      ModulePass *pass = createInternalizePass(std::vector<const char *>(1, "main"));
-#else
-      ModulePass *pass = createInternalizePass(true);
-#endif
+      ModulePass *pass = createInternalizePass(
+          std::vector<const char *>(1, EntryPoint.c_str()));
       addPass(Passes, pass);
     }
 

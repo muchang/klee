@@ -1,7 +1,13 @@
-//===- DiscretePDF.inc - --*- C++ -*-===//
-
+//===- DiscretePDF.inc - --*- C++ -*---------------------------------------===//
 //
+//                     The KLEE Symbolic Virtual Machine
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
 
+#include <cassert>
 namespace klee {
 
 template <class T>
@@ -48,8 +54,8 @@ DiscretePDF<T>::Node::Node(T key_, weight_type weight_, Node *parent_) {
 
 template <class T>
 DiscretePDF<T>::Node::~Node() {
-  if (left) delete left;
-  if (right) delete right;
+  delete left;
+  delete right;
 }
 
 //
@@ -61,7 +67,7 @@ DiscretePDF<T>::DiscretePDF() {
 
 template <class T>
 DiscretePDF<T>::~DiscretePDF() {
-  if (m_root) delete m_root;
+  delete m_root;
 }
 
 template <class T>
@@ -157,32 +163,31 @@ void DiscretePDF<T>::update(T item, weight_type weight) {
 
 template <class T>
 T DiscretePDF<T>::choose(double p) {
-  if (p<0.0 || p>=1.0) {
-    assert(0 && "choose: argument(p) outside valid range");
-  } else if (!m_root) {
+  assert (!((p < 0.0) || (p >= 1.0)) && "choose: argument(p) outside valid range");
+
+  if (!m_root)
     assert(0 && "choose: choose() called on empty tree");
-  } else {
-    weight_type w = (weight_type) (m_root->sumWeights * p);
-    Node *n = m_root;
 
-    while (1) {
-      if (n->left) {
-        if (w<n->left->sumWeights) {
-          n = n->left;
-          continue;
-        } else {
-          w -= n->left->sumWeights;
-        }
+  weight_type w = (weight_type) (m_root->sumWeights * p);
+  Node *n = m_root;
+
+  while (1) {
+    if (n->left) {
+      if (w<n->left->sumWeights) {
+	n = n->left;
+	continue;
+      } else {
+	w -= n->left->sumWeights;
       }
-      if (w<n->weight || !n->right) {
-        break; // !n->right condition shouldn't be necessary, just sanity check
-      }
-      w -= n->weight;
-      n = n->right;
     }
-
-    return n->key;
+    if (w<n->weight || !n->right) {
+      break; // !n->right condition shouldn't be necessary, just sanity check
+    }
+    w -= n->weight;
+    n = n->right;
   }
+
+  return n->key;
 }
 
 template <class T>

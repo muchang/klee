@@ -58,6 +58,8 @@ bool AddressSpace::resolveOne(const ref<ConstantExpr> &addr,
 
   if (const MemoryMap::value_type *res = objects.lookup_previous(&hack)) {
     const MemoryObject *mo = res->first;
+    // Check if the provided address is between start and end of the object
+    // [mo->address, mo->address + mo->size) or the object is a 0-sized object.
     if ((mo->size==0 && address==mo->address) ||
         (address - mo->address < mo->size)) {
       result = *res;
@@ -296,7 +298,7 @@ void AddressSpace::copyOutConcretes() {
 
     if (!mo->isUserSpecified) {
       ObjectState *os = it->second;
-      uint8_t *address = (uint8_t*) (unsigned long) mo->address;
+      auto address = reinterpret_cast<std::uint8_t*>(mo->address);
 
       if (!os->readOnly)
         memcpy(address, os->concreteStore, mo->size);
@@ -311,19 +313,26 @@ bool AddressSpace::copyInConcretes() {
 
     if (!mo->isUserSpecified) {
       const ObjectState *os = it->second;
-      uint8_t *address = (uint8_t*) (unsigned long) mo->address;
 
-      if (memcmp(address, os->concreteStore, mo->size)!=0) {
-        if (os->readOnly) {
-          return false;
-        } else {
-          ObjectState *wos = getWriteable(mo, os);
-          memcpy(wos->concreteStore, address, mo->size);
-        }
-      }
+      if (!copyInConcrete(mo, os, mo->address))
+        return false;
     }
   }
 
+  return true;
+}
+
+bool AddressSpace::copyInConcrete(const MemoryObject *mo, const ObjectState *os,
+                                  uint64_t src_address) {
+  auto address = reinterpret_cast<std::uint8_t*>(src_address);
+  if (memcmp(address, os->concreteStore, mo->size) != 0) {
+    if (os->readOnly) {
+      return false;
+    } else {
+      ObjectState *wos = getWriteable(mo, os);
+      memcpy(wos->concreteStore, address, mo->size);
+    }
+  }
   return true;
 }
 

@@ -11,7 +11,6 @@
 
 #include "klee/Config/Version.h"
 
-#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 3)
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
@@ -23,25 +22,6 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/DataLayout.h"
-#else
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
-#include "llvm/InstrTypes.h"
-#include "llvm/Instruction.h"
-#include "llvm/Instructions.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/Module.h"
-#include "llvm/Type.h"
-
-#include "llvm/LLVMContext.h"
-
-#if LLVM_VERSION_CODE <= LLVM_VERSION(3, 1)
-#include "llvm/Target/TargetData.h"
-#else
-#include "llvm/DataLayout.h"
-#endif
-#endif
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -53,6 +33,7 @@ char DivCheckPass::ID;
 
 bool DivCheckPass::runOnModule(Module &M) { 
   Function *divZeroCheckFunction = 0;
+  LLVMContext &ctx = M.getContext();
 
   bool moduleChanged = false;
   
@@ -67,16 +48,16 @@ bool DivCheckPass::runOnModule(Module &M) {
             
             CastInst *denominator =
               CastInst::CreateIntegerCast(i->getOperand(1),
-                                          Type::getInt64Ty(getGlobalContext()),
+                                          Type::getInt64Ty(ctx),
                                           false,  /* sign doesn't matter */
                                           "int_cast_to_i64",
-                                          i);
+                                          &*i);
             
             // Lazily bind the function to avoid always importing it.
             if (!divZeroCheckFunction) {
               Constant *fc = M.getOrInsertFunction("klee_div_zero_check", 
-                                                   Type::getVoidTy(getGlobalContext()), 
-                                                   Type::getInt64Ty(getGlobalContext()), 
+                                                   Type::getVoidTy(ctx),
+                                                   Type::getInt64Ty(ctx),
                                                    NULL);
               divZeroCheckFunction = cast<Function>(fc);
             }
@@ -100,6 +81,7 @@ char OvershiftCheckPass::ID;
 
 bool OvershiftCheckPass::runOnModule(Module &M) {
   Function *overshiftCheckFunction = 0;
+  LLVMContext &ctx = M.getContext();
 
   bool moduleChanged = false;
 
@@ -118,35 +100,32 @@ bool OvershiftCheckPass::runOnModule(Module &M) {
             // Determine bit width of first operand
             uint64_t bitWidth=i->getOperand(0)->getType()->getScalarSizeInBits();
 
-            ConstantInt *bitWidthC = ConstantInt::get(Type::getInt64Ty(getGlobalContext()),bitWidth,false);
+            ConstantInt *bitWidthC = ConstantInt::get(Type::getInt64Ty(ctx),
+		bitWidth, false);
             args.push_back(bitWidthC);
 
             CastInst *shift =
               CastInst::CreateIntegerCast(i->getOperand(1),
-                                          Type::getInt64Ty(getGlobalContext()),
+                                          Type::getInt64Ty(ctx),
                                           false,  /* sign doesn't matter */
                                           "int_cast_to_i64",
-                                          i);
+                                          &*i);
             args.push_back(shift);
 
 
             // Lazily bind the function to avoid always importing it.
             if (!overshiftCheckFunction) {
               Constant *fc = M.getOrInsertFunction("klee_overshift_check",
-                                                   Type::getVoidTy(getGlobalContext()),
-                                                   Type::getInt64Ty(getGlobalContext()),
-                                                   Type::getInt64Ty(getGlobalContext()),
+                                                   Type::getVoidTy(ctx),
+                                                   Type::getInt64Ty(ctx),
+                                                   Type::getInt64Ty(ctx),
                                                    NULL);
               overshiftCheckFunction = cast<Function>(fc);
             }
 
             // Inject CallInstr to check if overshifting possible
-            CallInst* ci =
-#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 0)
-            CallInst::Create(overshiftCheckFunction, args, "", &*i);
-#else
-            CallInst::Create(overshiftCheckFunction, args.begin(), args.end(), "", &*i);
-#endif
+            CallInst *ci =
+                CallInst::Create(overshiftCheckFunction, args, "", &*i);
             // set debug information from binary operand to preserve it
             ci->setDebugLoc(binOp->getDebugLoc());
             moduleChanged = true;

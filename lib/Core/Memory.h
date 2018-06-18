@@ -11,6 +11,7 @@
 #define KLEE_MEMORY_H
 
 #include "Context.h"
+#include "TimingSolver.h"
 #include "klee/Expr.h"
 
 #include "llvm/ADT/StringExtras.h"
@@ -27,6 +28,7 @@ namespace klee {
 class BitArray;
 class MemoryManager;
 class Solver;
+class ArrayCache;
 
 class MemoryObject {
   friend class STPBuilder;
@@ -49,8 +51,6 @@ public:
   mutable bool isGlobal;
   bool isFixed;
 
-  /// true if created by us.
-  bool fake_object;
   bool isUserSpecified;
 
   MemoryManager *parent;
@@ -95,7 +95,6 @@ public:
       isLocal(_isLocal),
       isGlobal(_isGlobal),
       isFixed(_isFixed),
-      fake_object(false),
       isUserSpecified(false),
       parent(_parent), 
       allocSite(_allocSite) {
@@ -156,6 +155,7 @@ private:
   const MemoryObject *object;
 
   uint8_t *concreteStore;
+
   // XXX cleanup name of flushMask (its backwards or something)
   BitArray *concreteMask;
 
@@ -206,6 +206,14 @@ public:
   void write16(unsigned offset, uint16_t value);
   void write32(unsigned offset, uint32_t value);
   void write64(unsigned offset, uint64_t value);
+  void print() const;
+
+  /*
+    Looks at all the symbolic bytes of this object, gets a value for them
+    from the solver and puts them in the concreteStore.
+  */
+  void flushToConcreteStore(TimingSolver *solver,
+                            const ExecutionState &state) const;
 
 private:
   const UpdateList &getUpdates() const;
@@ -233,7 +241,7 @@ private:
   void markByteUnflushed(unsigned offset);
   void setKnownSymbolic(unsigned offset, Expr *value);
 
-  void print();
+  ArrayCache *getArrayCache() const;
 };
   
 } // End klee namespace

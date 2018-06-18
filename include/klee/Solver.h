@@ -10,6 +10,7 @@
 #ifndef KLEE_SOLVER_H
 #define KLEE_SOLVER_H
 
+#include "klee/CommandLine.h" // FIXME: This is just for CoreSolverType
 #include "klee/Expr.h"
 
 #include <vector>
@@ -42,6 +43,9 @@ namespace klee {
     Query negateExpr() const {
       return withExpr(Expr::createIsZero(expr));
     }
+
+    /// Dump query
+    void dump() const ;
   };
 
   class Solver {
@@ -199,41 +203,6 @@ namespace klee {
     virtual void setCoreSolverTimeout(double timeout);
   };
 
-  /// STPSolver - A complete solver based on STP.
-  class STPSolver : public Solver {
-  public:
-    /// STPSolver - Construct a new STPSolver.
-    ///
-    /// \param useForkedSTP - Whether STP should be run in a separate process
-    /// (required for using timeouts).
-    /// \param optimizeDivides - Whether constant division operations should
-    /// be optimized into add/shift/multiply operations.
-    STPSolver(bool useForkedSTP, bool optimizeDivides = true);
-
-    /// getConstraintLog - Return the constraint log for the given state in CVC
-    /// format.
-    virtual char *getConstraintLog(const Query&);
-
-    /// setCoreSolverTimeout - Set constraint solver timeout delay to the given value; 0
-    /// is off.
-    virtual void setCoreSolverTimeout(double timeout);
-  };
-
-  
-#ifdef SUPPORT_METASMT
-  
-  template<typename SolverContext>
-  class MetaSMTSolver : public Solver {
-  public:
-    MetaSMTSolver(bool useForked, bool optimizeDivides);
-    virtual ~MetaSMTSolver();
-  
-    virtual char *getConstraintLog(const Query&);
-    virtual void setCoreSolverTimeout(double timeout);
-};
-
-#endif /* SUPPORT_METASMT */
-
   /* *** */
 
   /// createValidatingSolver - Create a solver which will validate all query
@@ -244,6 +213,12 @@ namespace klee {
   /// \param s - The primary underlying solver to use.
   /// \param oracle - The solver to check query results against.
   Solver *createValidatingSolver(Solver *s, Solver *oracle);
+
+  /// createAssignmentValidatingSolver - Create a solver that when requested
+  /// for an assignment will check that the computed assignment satisfies
+  /// the Query.
+  /// \param s - The underlying solver to use.
+  Solver *createAssignmentValidatingSolver(Solver *s);
 
   /// createCachingSolver - Create a solver which will cache the queries in
   /// memory (without eviction).
@@ -273,9 +248,9 @@ namespace klee {
   /// \param s - The underlying solver to use.
   Solver *createIndependentSolver(Solver *s);
   
-  /// createPCLoggingSolver - Create a solver which will forward all queries
-  /// after writing them to the given path in .pc format.
-  Solver *createPCLoggingSolver(Solver *s, std::string path,
+  /// createKQueryLoggingSolver - Create a solver which will forward all queries
+  /// after writing them to the given path in .kquery format.
+  Solver *createKQueryLoggingSolver(Solver *s, std::string path,
                                 int minQueryTimeToLog);
 
   /// createSMTLIBLoggingSolver - Create a solver which will forward all queries
@@ -287,7 +262,9 @@ namespace klee {
   /// createDummySolver - Create a dummy solver implementation which always
   /// fails.
   Solver *createDummySolver();
-  
+
+  // Create a solver based on the supplied ``CoreSolverType``.
+  Solver *createCoreSolver(CoreSolverType cst);
 }
 
 #endif

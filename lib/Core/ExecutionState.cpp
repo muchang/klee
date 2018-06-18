@@ -17,11 +17,7 @@
 #include "klee/Expr.h"
 
 #include "Memory.h"
-#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 3)
 #include "llvm/IR/Function.h"
-#else
-#include "llvm/Function.h"
-#endif
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -77,7 +73,8 @@ ExecutionState::ExecutionState(KFunction *kf) :
     instsSinceCovNew(0),
     coveredNew(false),
     forkDisabled(false),
-    ptreeNode(0) {
+    ptreeNode(0),
+    steppedInstructions(0){
   pushFrame(0, kf);
 }
 
@@ -93,6 +90,11 @@ ExecutionState::~ExecutionState() {
     if (mo->refCount == 0)
       delete mo;
   }
+
+  for (auto cur_mergehandler: openMergeStack){
+    cur_mergehandler->removeOpenState(this);
+  }
+
 
   while (!stack.empty()) popFrame();
 }
@@ -120,10 +122,15 @@ ExecutionState::ExecutionState(const ExecutionState& state):
     coveredLines(state.coveredLines),
     ptreeNode(state.ptreeNode),
     symbolics(state.symbolics),
-    arrayNames(state.arrayNames)
+    arrayNames(state.arrayNames),
+    openMergeStack(state.openMergeStack),
+    steppedInstructions(state.steppedInstructions)
 {
   for (unsigned int i=0; i<symbolics.size(); i++)
     symbolics[i].first->refCount++;
+
+  for (auto cur_mergehandler: openMergeStack)
+    cur_mergehandler->addOpenState(this);
 }
 
 ExecutionState *ExecutionState::branch() {
@@ -370,8 +377,8 @@ void ExecutionState::dumpStack(llvm::raw_ostream &out) const {
 
       out << ai->getName().str();
       // XXX should go through function
-      ref<Expr> value = sf.locals[sf.kf->getArgRegister(index++)].value; 
-      if (isa<ConstantExpr>(value))
+      ref<Expr> value = sf.locals[sf.kf->getArgRegister(index++)].value;
+      if (value.get() && isa<ConstantExpr>(value))
         out << "=" << value;
     }
     out << ")";

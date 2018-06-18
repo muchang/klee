@@ -16,11 +16,7 @@
 
 #include "Passes.h"
 #include "klee/Config/Version.h"
-#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 3)
 #include "llvm/IR/LLVMContext.h"
-#else
-#include "llvm/LLVMContext.h"
-#endif
 #include <algorithm>
 
 using namespace llvm;
@@ -44,7 +40,8 @@ bool LowerSwitchPass::runOnFunction(Function &F) {
   bool changed = false;
 
   for (Function::iterator I = F.begin(), E = F.end(); I != E; ) {
-    BasicBlock *cur = I++; // Advance over block so we don't traverse new blocks
+    BasicBlock *cur = &*I;
+    I++; // Advance over block so we don't traverse new blocks
 
     if (SwitchInst *SI = dyn_cast<SwitchInst>(cur->getTerminator())) {
       changed = true;
@@ -66,7 +63,7 @@ void LowerSwitchPass::switchConvert(CaseItr begin, CaseItr end,
   
   // iterate through all the cases, creating a new BasicBlock for each
   for (CaseItr it = begin; it < end; ++it) {
-    BasicBlock *newBlock = BasicBlock::Create(getGlobalContext(), "NodeBlock");
+    BasicBlock *newBlock = BasicBlock::Create(F->getContext(), "NodeBlock");
     Function::iterator FI = origBlock;
     F->getBasicBlockList().insert(++FI, newBlock);
     
@@ -102,7 +99,7 @@ void LowerSwitchPass::processSwitchInst(SwitchInst *SI) {
 
   // Create a new, empty default block so that the new hierarchy of
   // if-then statements go to this and the PHI nodes are happy.
-  BasicBlock* newDefault = BasicBlock::Create(getGlobalContext(), "newDefault");
+  BasicBlock* newDefault = BasicBlock::Create(F->getContext(), "newDefault");
 
   F->getBasicBlockList().insert(defaultBlock, newDefault);
   BranchInst::Create(defaultBlock, newDefault);
@@ -117,16 +114,14 @@ void LowerSwitchPass::processSwitchInst(SwitchInst *SI) {
   }
   
   CaseVector cases;
-  
-#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 1)
+
+#if LLVM_VERSION_CODE > LLVM_VERSION(3, 4)
+  for (auto i : SI->cases())
+#else
   for (SwitchInst::CaseIt i = SI->case_begin(), e = SI->case_end(); i != e; ++i)
+#endif
     cases.push_back(SwitchCase(i.getCaseValue(),
                                i.getCaseSuccessor()));
-#else
-  for (unsigned i = 1; i < SI->getNumSuccessors(); ++i)  
-    cases.push_back(SwitchCase(SI->getSuccessorValue(i),
-                               SI->getSuccessor(i)));
-#endif
   
   // reverse cases, as switchConvert constructs a chain of
   //   basic blocks by appending to the front. if we reverse,

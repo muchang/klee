@@ -4,7 +4,7 @@
 //
 // Check that generated assembly doesn't use puts to output strings
 // RUN: FileCheck -input-file=%t.klee-out/assembly.ll %s
-// CHECK-NOT: puts
+// CHECK-NOT: call i32 @puts(
 //
 // RUN: test -f %t.klee-out/test000001.ktest
 // RUN: test -f %t.klee-out/test000002.ktest
@@ -18,7 +18,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 int main(int argc, char** argv) {
   char buf[1024];
@@ -28,7 +29,7 @@ int main(int argc, char** argv) {
 
   int r;
 
-  r = read(fd, buf, 1, 5);
+  r = read(fd, buf, 5);
   if (r != -1)
     printf("read() succeeded %u\n", fd);
   else printf("read() failed with error '%s'\n", strerror(errno));

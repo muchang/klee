@@ -7,12 +7,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Common.h"
-
 #include "UserSearcher.h"
 
 #include "Searcher.h"
 #include "Executor.h"
+
+#include "klee/Internal/Support/ErrorHandling.h"
+#include "klee/CommandLine.h"
+#include "klee/MergeHandler.h"
+
 
 #include "llvm/Support/CommandLine.h"
 
@@ -23,7 +26,7 @@ namespace {
   cl::list<Searcher::CoreSearchType>
   CoreSearch("search", cl::desc("Specify the search heuristic (default=random-path interleaved with nurs:covnew)"),
 	     cl::values(clEnumValN(Searcher::DFS, "dfs", "use Depth First Search (DFS)"),
-			clEnumValN(Searcher::BFS, "bfs", "use Breadth First Search (BFS)"),
+			clEnumValN(Searcher::BFS, "bfs", "use Breadth First Search (BFS), where scheduling decisions are taken at the level of (2-way) forks"),
 			clEnumValN(Searcher::RandomState, "random-state", "randomly select a state to explore"),
 			clEnumValN(Searcher::RandomPath, "random-path", "use Random Path Selection (see OSDI'08 paper)"),
 			clEnumValN(Searcher::NURS_CovNew, "nurs:covnew", "use Non Uniform Random Search (NURS) with Coverage-New"),
@@ -31,8 +34,8 @@ namespace {
 			clEnumValN(Searcher::NURS_Depth, "nurs:depth", "use NURS with 2^depth"),
 			clEnumValN(Searcher::NURS_ICnt, "nurs:icnt", "use NURS with Instr-Count"),
 			clEnumValN(Searcher::NURS_CPICnt, "nurs:cpicnt", "use NURS with CallPath-Instr-Count"),
-			clEnumValN(Searcher::NURS_QC, "nurs:qc", "use NURS with Query-Cost"),
-			clEnumValEnd));
+			clEnumValN(Searcher::NURS_QC, "nurs:qc", "use NURS with Query-Cost")
+			KLEE_LLVM_CL_VAL_END));
 
   cl::opt<bool>
   UseIterativeDeepeningTimeSearch("use-iterative-deepening-time-search", 
@@ -53,17 +56,21 @@ namespace {
             cl::desc("Amount of time to batch when using --use-batching-search"),
             cl::init(5.0));
 
-
-  cl::opt<bool>
-  UseMerge("use-merge", 
-           cl::desc("Enable support for klee_merge() (experimental)"));
- 
-  cl::opt<bool>
-  UseBumpMerge("use-bump-merge", 
-           cl::desc("Enable support for klee_merge() (extra experimental)"));
-
 }
 
+
+void klee::initializeSearchOptions() {
+  // default values
+  if (CoreSearch.empty()) {
+    if (UseMerge){
+      CoreSearch.push_back(Searcher::NURS_CovNew);
+      klee_warning("--use-merge enabled. Using NURS_CovNew as default searcher.");
+    } else {
+      CoreSearch.push_back(Searcher::RandomPath);
+      CoreSearch.push_back(Searcher::NURS_CovNew);
+    }
+  }
+}
 
 bool klee::userSearcherRequiresMD2U() {
   return (std::find(CoreSearch.begin(), CoreSearch.end(), Searcher::NURS_MD2U) != CoreSearch.end() ||
@@ -94,12 +101,6 @@ Searcher *getNewSearcher(Searcher::CoreSearchType type, Executor &executor) {
 
 Searcher *klee::constructUserSearcher(Executor &executor) {
 
-  // default values
-  if (CoreSearch.size() == 0) {
-    CoreSearch.push_back(Searcher::RandomPath);
-    CoreSearch.push_back(Searcher::NURS_CovNew);
-  }
-
   Searcher *searcher = getNewSearcher(CoreSearch[0], executor);
   
   if (CoreSearch.size() > 1) {
@@ -112,19 +113,20 @@ Searcher *klee::constructUserSearcher(Executor &executor) {
     searcher = new InterleavedSearcher(s);
   }
 
+  if (UseMerge) {
+    if (std::find(CoreSearch.begin(), CoreSearch.end(), Searcher::RandomPath) != CoreSearch.end()){
+      klee_error("use-merge currently does not support random-path, please use another search strategy");
+    }
+  }
+
   if (UseBatchingSearch) {
     searcher = new BatchingSearcher(searcher, BatchTime, BatchInstructions);
   }
 
-  // merge support is experimental
-  if (UseMerge) {
-    assert(!UseBumpMerge);
-    assert(std::find(CoreSearch.begin(), CoreSearch.end(), Searcher::RandomPath) == CoreSearch.end()); // XXX: needs further debugging: test/Features/Searchers.c fails with this searcher
+  if (UseMerge && UseIncompleteMerge) {
     searcher = new MergingSearcher(executor, searcher);
-  } else if (UseBumpMerge) {
-    searcher = new BumpMergingSearcher(executor, searcher);
   }
-  
+
   if (UseIterativeDeepeningTimeSearch) {
     searcher = new IterativeDeepeningTimeSearcher(searcher);
   }

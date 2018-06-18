@@ -20,6 +20,8 @@
 #include "klee/Internal/Module/Cell.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
+#include "klee/util/ArrayCache.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include "llvm/ADT/Twine.h"
 
@@ -39,11 +41,8 @@ namespace llvm {
   class Function;
   class GlobalValue;
   class Instruction;
-#if LLVM_VERSION_CODE <= LLVM_VERSION(3, 1)
-  class TargetData;
-#else
+  class LLVMContext;
   class DataLayout;
-#endif
   class Twine;
   class Value;
 }
@@ -70,6 +69,7 @@ namespace klee {
   class StatsTracker;
   class TimingSolver;
   class TreeStreamWriter;
+  class MergeHandler;
   template<class T> class ref;
 
 
@@ -79,13 +79,13 @@ namespace klee {
   /// removedStates, and haltExecution, among others.
 
 class Executor : public Interpreter {
-  friend class BumpMergingSearcher;
-  friend class MergingSearcher;
   friend class RandomPathSearcher;
   friend class OwningSearcher;
   friend class WeightedRandomSearcher;
   friend class SpecialFunctionHandler;
   friend class StatsTracker;
+  friend class MergeHandler;
+  friend class MergingSearcher;
 
 public:
   class Timer {
@@ -99,7 +99,25 @@ public:
 
   typedef std::pair<ExecutionState*,ExecutionState*> StatePair;
 
+  enum TerminateReason {
+    Abort,
+    Assert,
+    BadVectorAccess,
+    Exec,
+    External,
+    Free,
+    Model,
+    Overflow,
+    Ptr,
+    ReadOnly,
+    ReportError,
+    User,
+    Unhandled
+  };
+
 private:
+  static const char *TerminateReasonNames[];
+
   class TimerInfo;
 
   KModule *kmodule;
@@ -116,16 +134,33 @@ private:
   std::vector<TimerInfo*> timers;
   PTree *processTree;
 
+  /// Keeps track of all currently ongoing merges.
+  /// An ongoing merge is a set of states which branched from a single state
+  /// which ran into a klee_open_merge(), and not all states in the set have
+  /// reached the corresponding klee_close_merge() yet.
+  std::vector<MergeHandler *> mergeGroups;
+
+  /// ExecutionStates currently paused from scheduling because they are
+  /// waiting to be merged in a klee_close_merge instruction
+  std::set<ExecutionState *> inCloseMerge;
+
   /// Used to track states that have been added during the current
   /// instructions step. 
   /// \invariant \ref addedStates is a subset of \ref states. 
   /// \invariant \ref addedStates and \ref removedStates are disjoint.
-  std::set<ExecutionState*> addedStates;
+  std::vector<ExecutionState *> addedStates;
   /// Used to track states that have been removed during the current
   /// instructions step. 
   /// \invariant \ref removedStates is a subset of \ref states. 
   /// \invariant \ref addedStates and \ref removedStates are disjoint.
-  std::set<ExecutionState*> removedStates;
+  std::vector<ExecutionState *> removedStates;
+
+  /// Used to track states that are not terminated, but should not
+  /// be scheduled by the searcher.
+  std::vector<ExecutionState *> pausedStates;
+  /// States that were 'paused' from scheduling, that now may be
+  /// scheduled again
+  std::vector<ExecutionState *> continuedStates;
 
   /// When non-empty the Executor is running in "seed" mode. The
   /// states in this map will be executed in an arbitrary order
@@ -149,10 +184,10 @@ private:
 
   /// When non-null the bindings that will be used for calls to
   /// klee_make_symbolic in order replay.
-  const struct KTest *replayOut;
+  const struct KTest *replayKTest;
   /// When non-null a list of branch decisions to be used for replay.
   const std::vector<bool> *replayPath;
-  /// The index into the current \ref replayOut or \ref replayPath
+  /// The index into the current \ref replayKTest or \ref replayPath
   /// object.
   unsigned replayPosition;
 
@@ -177,14 +212,27 @@ private:
 
   /// The maximum time to allow for a single core solver query.
   /// (e.g. for a single STP query)
-  double coreSolverTimeout; 
+  double coreSolverTimeout;
+
+  /// Assumes ownership of the created array objects
+  ArrayCache arrayCache;
+
+  /// File to print executed instructions to
+  llvm::raw_ostream *debugInstFile;
+
+  // @brief Buffer used by logBuffer
+  std::string debugBufferString;
+
+  // @brief buffer to store logs before flushing to file
+  llvm::raw_string_ostream debugLogBuffer;
 
   llvm::Function* getTargetFunction(llvm::Value *calledVal,
                                     ExecutionState &state);
   
   void executeInstruction(ExecutionState &state, KInstruction *ki);
 
-  void printFileLine(ExecutionState &state, KInstruction *ki);
+  void printFileLine(ExecutionState &state, KInstruction *ki,
+                     llvm::raw_ostream &file);
 
   void run(ExecutionState &initialState);
 
@@ -319,7 +367,17 @@ private:
                     ExecutionState &state,
                     ref<Expr> value);
 
-  ref<klee::ConstantExpr> evalConstantExpr(const llvm::ConstantExpr *ce);
+  /// Evaluates an LLVM constant expression.  The optional argument ki
+  /// is the instruction where this constant was encountered, or NULL
+  /// if not applicable/unavailable.
+  ref<klee::ConstantExpr> evalConstantExpr(const llvm::ConstantExpr *c,
+					   const KInstruction *ki = NULL);
+
+  /// Evaluates an LLVM constant.  The optional argument ki is the
+  /// instruction where this constant was encountered, or NULL if
+  /// not applicable/unavailable.
+  ref<klee::ConstantExpr> evalConstant(const llvm::Constant *c,
+				       const KInstruction *ki = NULL);
 
   /// Return a unique constant value for the given expression in the
   /// given state, if it has one (i.e. it provably only has a single
@@ -347,6 +405,12 @@ private:
   const InstructionInfo & getLastNonKleeInternalInstruction(const ExecutionState &state,
       llvm::Instruction** lastInstruction);
 
+  bool shouldExitOn(enum TerminateReason termReason);
+
+  // remove state from searcher only
+  void pauseState(ExecutionState& state);
+  // add state to searcher only
+  void continueState(ExecutionState& state);
   // remove state from queue and delete
   void terminateState(ExecutionState &state);
   // call exit handler and terminate state
@@ -354,10 +418,10 @@ private:
   // call exit handler and terminate state
   void terminateStateOnExit(ExecutionState &state);
   // call error handler and terminate state
-  void terminateStateOnError(ExecutionState &state, 
-                             const llvm::Twine &message,
-                             const char *suffix,
-                             const llvm::Twine &longMessage="");
+  void terminateStateOnError(ExecutionState &state, const llvm::Twine &message,
+                             enum TerminateReason termReason,
+                             const char *suffix = NULL,
+                             const llvm::Twine &longMessage = "");
 
   // call error handler and terminate state, for execution errors
   // (things that should not be possible, like illegal instruction or
@@ -365,7 +429,7 @@ private:
   void terminateStateOnExecError(ExecutionState &state, 
                                  const llvm::Twine &message,
                                  const llvm::Twine &info="") {
-    terminateStateOnError(state, message, "exec.err", info);
+    terminateStateOnError(state, message, Exec, NULL, info);
   }
 
   /// bindModuleConstants - Initialize the module constant table.
@@ -395,33 +459,34 @@ private:
   void initTimers();
   void processTimers(ExecutionState *current,
                      double maxInstTime);
-                
+  void checkMemoryUsage();
+  void printDebugInstructions(ExecutionState &state);
+  void doDumpStates();
+
 public:
-  Executor(const InterpreterOptions &opts, InterpreterHandler *ie);
+  Executor(llvm::LLVMContext &ctx, const InterpreterOptions &opts,
+      InterpreterHandler *ie);
   virtual ~Executor();
 
   const InterpreterHandler& getHandler() {
     return *interpreterHandler;
   }
 
-  // XXX should just be moved out to utility module
-  ref<klee::ConstantExpr> evalConstant(const llvm::Constant *c);
-
   virtual void setPathWriter(TreeStreamWriter *tsw) {
     pathWriter = tsw;
   }
   virtual void setSymbolicPathWriter(TreeStreamWriter *tsw) {
     symPathWriter = tsw;
-  }      
+  }
 
-  virtual void setReplayOut(const struct KTest *out) {
+  virtual void setReplayKTest(const struct KTest *out) {
     assert(!replayPath && "cannot replay both buffer and path");
-    replayOut = out;
+    replayKTest = out;
     replayPosition = 0;
   }
 
   virtual void setReplayPath(const std::vector<bool> *path) {
-    assert(!replayOut && "cannot replay both buffer and path");
+    assert(!replayKTest && "cannot replay both buffer and path");
     replayPath = path;
     replayPosition = 0;
   }
@@ -448,6 +513,8 @@ public:
     inhibitForking = value;
   }
 
+  void prepareForEarlyExit();
+
   /*** State accessor methods ***/
 
   virtual unsigned getPathStreamID(const ExecutionState &state);
@@ -467,7 +534,11 @@ public:
   virtual void getCoveredLines(const ExecutionState &state,
                                std::map<const std::string*, std::set<unsigned> > &res);
 
-  Expr::Width getWidthForLLVMType(LLVM_TYPE_Q llvm::Type *type) const;
+  Expr::Width getWidthForLLVMType(llvm::Type *type) const;
+  size_t getAllocationAlignment(const llvm::Value *allocSite) const;
+
+  /// Returns the errno location in memory of the state
+  int *getErrnoLocation(const ExecutionState &state) const;
 };
   
 } // End klee namespace

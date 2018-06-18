@@ -18,6 +18,7 @@ struct KTest;
 
 namespace llvm {
 class Function;
+class LLVMContext;
 class Module;
 class raw_ostream;
 class raw_fd_ostream;
@@ -51,21 +52,22 @@ public:
   /// registering a module with the interpreter.
   struct ModuleOptions {
     std::string LibraryDir;
+    std::string EntryPoint;
     bool Optimize;
     bool CheckDivZero;
     bool CheckOvershift;
 
-    ModuleOptions(const std::string& _LibraryDir, 
-                  bool _Optimize, bool _CheckDivZero,
-                  bool _CheckOvershift)
-      : LibraryDir(_LibraryDir), Optimize(_Optimize), 
-        CheckDivZero(_CheckDivZero), CheckOvershift(_CheckOvershift) {}
+    ModuleOptions(const std::string &_LibraryDir,
+                  const std::string &_EntryPoint, bool _Optimize,
+                  bool _CheckDivZero, bool _CheckOvershift)
+        : LibraryDir(_LibraryDir), EntryPoint(_EntryPoint), Optimize(_Optimize),
+          CheckDivZero(_CheckDivZero), CheckOvershift(_CheckOvershift) {}
   };
 
   enum LogType
   {
 	  STP, //.CVC (STP's native language)
-	  KQUERY, //.PC files (kQuery native language)
+	  KQUERY, //.KQUERY files (kQuery native language)
 	  SMTLIB2 //.SMT2 files (SMTLIB version 2 files)
   };
 
@@ -92,7 +94,8 @@ protected:
 public:
   virtual ~Interpreter() {}
 
-  static Interpreter *create(const InterpreterOptions &_interpreterOpts,
+  static Interpreter *create(llvm::LLVMContext &ctx,
+                             const InterpreterOptions &_interpreterOpts,
                              InterpreterHandler *ih);
 
   /// Register the module to be executed.  
@@ -113,7 +116,7 @@ public:
 
   // supply a test case to replay from. this can be used to drive the
   // interpretation down a user specified path. use null to reset.
-  virtual void setReplayOut(const struct KTest *out) = 0;
+  virtual void setReplayKTest(const struct KTest *out) = 0;
 
   // supply a list of branch decisions specifying which direction to
   // take on forks. this can be used to drive the interpretation down
@@ -134,6 +137,8 @@ public:
   virtual void setHaltExecution(bool value) = 0;
 
   virtual void setInhibitForking(bool value) = 0;
+
+  virtual void prepareForEarlyExit() = 0;
 
   /*** State accessor methods ***/
 

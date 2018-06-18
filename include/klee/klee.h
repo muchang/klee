@@ -31,16 +31,16 @@ extern "C" {
    * \arg addr - The start of the object.
    * \arg nbytes - The number of bytes to make symbolic; currently this *must*
    * be the entire contents of the object.
-   * \arg name - An optional name, used for identifying the object in messages,
-   * output files, etc.
+   * \arg name - A name used for identifying the object in messages, output
+   * files, etc. If NULL, object is called "unnamed".
    */
   void klee_make_symbolic(void *addr, size_t nbytes, const char *name);
 
   /* klee_range - Construct a symbolic value in the signed interval
    * [begin,end).
    *
-   * \arg name - An optional name, used for identifying the object in messages,
-   * output files, etc.
+   * \arg name - A name used for identifying the object in messages, output
+   * files, etc. If NULL, object is called "unnamed".
    */
   int klee_range(int begin, int end, const char *name);
 
@@ -152,8 +152,14 @@ extern "C" {
   /* Print range for given argument and tagged with name */
   void klee_print_range(const char * name, int arg );
 
-  /* Merge current states together if possible */
-  void klee_merge();
+  /* Open a merge */
+  void klee_open_merge();
+
+  /* Merge all paths of the state that went through klee_open_merge */
+  void klee_close_merge();
+
+  /* Get errno value of the current state */
+  int klee_get_errno(void);
 #ifdef __cplusplus
 }
 #endif

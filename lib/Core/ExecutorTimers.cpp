@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Common.h"
-
 #include "CoreStats.h"
 #include "Executor.h"
 #include "PTree.h"
@@ -20,13 +18,9 @@
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
 #include "klee/Internal/System/Time.h"
+#include "klee/Internal/Support/ErrorHandling.h"
 
-#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 3)
 #include "llvm/IR/Function.h"
-#else
-#include "llvm/Function.h"
-#endif
-
 #include "llvm/Support/CommandLine.h"
 
 #include <unistd.h>
@@ -40,7 +34,7 @@ using namespace klee;
 
 cl::opt<double>
 MaxTime("max-time",
-        cl::desc("Halt execution after the specified number of seconds (0=off)"),
+        cl::desc("Halt execution after the specified number of seconds (default=0 (off))"),
         cl::init(0));
 
 ///
@@ -53,7 +47,7 @@ public:
   ~HaltTimer() {}
 
   void run() {
-    llvm::errs() << "KLEE: HaltTimer invoked\n";
+    klee_message("HaltTimer invoked");
     executor->setHaltExecution(true);
   }
 };
@@ -180,7 +174,9 @@ void Executor::processTimers(ExecutionState *current,
       dumpStates = 0;
     }
 
-    if (maxInstTime>0 && current && !removedStates.count(current)) {
+    if (maxInstTime > 0 && current &&
+        std::find(removedStates.begin(), removedStates.end(), current) ==
+            removedStates.end()) {
       if (timerTicks*kSecondsPerTick > maxInstTime) {
         klee_warning("max-instruction-time exceeded: %.2fs",
                      timerTicks*kSecondsPerTick);
